@@ -1,0 +1,16 @@
+.mf-nav{background:var(--primary);display:flex;gap:2px;padding:0 16px;border-radius:10px 10px 0 0;flex-wrap:wrap;align-items:center}
+.mf-tab{padding:11px 18px;font-size:.84rem;font-weight:600;color:rgba(255,255,255,.7);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;user-select:none}
+.mf-tab:hover{color:#fff}
+.mf-tab.ativo{color:#fff;border-bottom-color:var(--accent)}
+.mf-menu{position:relative}
+.mf-sub{display:none;position:absolute;top:100%;left:0;z-index:60;background:#fff;border:1px solid var(--border);border-radius:0 0 8px 8px;box-shadow:var(--shadow);min-width:170px;padding:4px 0}
+.mf-menu:hover .mf-sub,.mf-menu.aberto .mf-sub{display:block}
+.mf-subitem{padding:9px 16px;font-size:.82rem;font-weight:600;color:var(--primary);cursor:pointer;white-space:nowrap}
+.mf-subitem:hover{background:var(--light)}
+.mf-versao{margin-left:auto;font-size:.66rem;color:rgba(255,255,255,.5);padding:0 6px}
+.mf-corpo{background:var(--light);padding:16px;border-radius:0 0 10px 10px}
+.mf-painel{display:none}
+.mf-painel.ativo{display:block}
+.mf h3{font-size:.82rem;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.5px;margin:0 0 12px}
+.mf input,.mf select,.mf textarea,.mf button{font-family:inherit}
+@media (max-width:600px){.mf-tab{padding:10px 12px}.mf-corpo{padding:10px}}

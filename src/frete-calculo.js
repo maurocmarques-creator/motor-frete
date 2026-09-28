@@ -1,0 +1,344 @@
+// frete-calculo.js — motor de calculo das tabelas de frete (Cadastro > Tabela).
+//
+// Nao depende de tela: e usado pelo Simulador e vai ser usado pela
+// auditoria Excel x tabela. Pode ser copiado para outros projetos junto
+// com o formato das tabelas (ver topo do cadastro-tabela.js).
+
+// Itens da composicao: [chave gravada, rotulo, tipo de regra].
+// Nao renomear chaves ja gravadas (so o rotulo pode mudar).
+// Tipos:
+//   PCT_NF     % sobre o valor da mercadoria (NF)          regra: {pct}
+//   PCT_CTE    % sobre o valor do CT-e                      regra: {pct}
+//   FIXO       valor fixo, somado se informado             regra: {valor}
+//   FRACAO     arred. p/ cima(peso / fracao) x valor       regra: {fracaoKg, valor, franquia, valorFranquia}
+//   FAIXA_PESO valor da faixa (+ excedente por kg)         regra: {faixas:[{de,ate,valorFranquia,franquia,valor}]}
+//              valorFranquia = VALOR DA FAIXA (R$ fixo); valor = R$/kg EXCEDENTE; franquia = kg a partir do qual
+//              cobra excedente. Sem excedente: frete = valor da faixa. Com excedente: frete = valor da faixa +
+//              (peso - franquia) x R$/kg. Franquia vazia = 'ate' da faixa anterior (ou 'de' da propria);
+//              valor da faixa vazio com excedente = valor da faixa anterior ("pega o valor ate a faixa").
+//   FAIXA_M3   m3 x valor da faixa de m3                   regra: {faixas:[{de,ate,valor}]}
+//   null       regra ainda nao definida (nao entra no calculo)
+// Franquia (so onde a base e kg): ate `franquia` kg cobra `valorFranquia`;
+//   acima, valorFranquia + excedente (peso - franquia) cobrado pela regra
+//   (FAIXA_PESO: excedente x R$/kg da faixa; FRACAO: arred. p/ cima(excedente / fracao) x valor).
+//   Ex.: faixa 0 a 3000, franquia 10 kg = R$ 200, excedente R$ 0,50/kg:
+//   100 kg -> 200 + (100 - 10) x 0,50 = R$ 245.
+// Todos aceitam {minimo}: o item nunca fica abaixo do preco minimo.
+// Peso usado em tudo que e por kg = PESO CONSIDERADO = maior entre o peso real e
+// o peso cubado (m3 x tabela.fatorCubagem, em kg/m3). Sem fator, vale o peso real.
+const TAB_COMPOSICAO = [
+  ['FRETE_COLETA', 'Frete Coleta', 'FAIXA_PESO'],
+  ['FRETE_ENTREGA', 'Frete Entrega', 'FAIXA_PESO'],
+  ['PERCENTUAL_NF', 'Percentual sobre NF', 'PCT_NF'],
+  ['ADVALOREM', 'Advalorem', 'PCT_NF'],
+  ['GRIS', 'GRIS', 'PCT_NF'],
+  ['DESPACHO', 'Despacho', 'FIXO'],
+  ['PEDAGIO', 'Pedágio', 'FRACAO'],
+  ['PERCENTUAL_CTE', 'Percentual sobre CT-e', 'PCT_CTE'],
+  ['PEDAGIO_FRACAO', 'Pedágio por Fração', 'FRACAO'],
+  ['TAXA_TRT', 'Taxa TRT', 'FIXO'],
+  ['TAXA_TAS', 'Taxa TAS', 'FIXO'],
+  ['TAXA_TDE', 'Taxa TDE', 'FIXO'],
+  ['TAXA_SET_CAT', 'Taxa SET/CAT', 'FIXO'],
+  ['TAXA_M3', 'Taxa por m³', 'FAIXA_M3'],
+];
+const TAB_ROTULO = Object.fromEntries(TAB_COMPOSICAO.map(([k, r]) => [k, r]));
+const TAB_TIPO = Object.fromEntries(TAB_COMPOSICAO.map(([k, , t]) => [k, t]));
+
+const FRETE_UFS = ['AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT', 'PA', 'PB',
+  'PE', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP', 'TO'];
+
+// Texto para comparacao: maiusculo, sem acento, espacos simples.
+function freteNorm(s) {
+  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim().replace(/\s+/g, ' ');
+}
+
+// Numero digitado no padrao brasileiro ("1.234,56" ou "1,5") -> Number; vazio -> null.
+function freteNum(v) {
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v === 'number') return isFinite(v) ? v : null;
+  let s = String(v).trim().replace(/\s/g, '').replace(/^R\$/i, '');
+  if (s === '') return null;
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  const n = Number(s);
+  return isFinite(n) ? n : null;
+}
+
+function freteFmt(n, dec = 2) {
+  return Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+
+function freteFmtNum(n) {
+  return Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: 6 });
+}
+
+// ---------- TRECHO ----------
+
+// Trechos cadastrados (Cadastro > Trecho): grupos de cidades com nome, que
+// podem ser origem/destino de um trecho de tabela (origemGrupoId/destinoGrupoId).
+// Quem usa o motor carrega a lista e chama freteDefinirGrupos(lista).
+let _freteGrupos = {};
+let _freteGruposLista = [];
+function freteDefinirGrupos(lista) {
+  _freteGruposLista = lista || [];
+  _freteGrupos = Object.fromEntries(_freteGruposLista.map(g => [g.id, g]));
+}
+
+// Um lado do trecho (origem ou destino) casa com o lugar? -1 = nao;
+// 0 = estado todo, 1 = trecho cadastrado (grupo), 2 = cidade.
+function freteLadoPontos(tr, lado, lugar) {
+  const gid = tr[lado + 'GrupoId'];
+  // Lugar informado como trecho cadastrado (Simulador: "trecho de inicio/fim"):
+  // casa com o mesmo trecho cadastrado, ou com "estado todo" se todas as
+  // cidades do trecho forem dessa UF; nunca com uma cidade especifica.
+  if (lugar.grupoId) {
+    if (gid) return gid === lugar.grupoId ? 1 : -1;
+    if (tr[lado + 'Cidade']) return -1;
+    return freteGrupoUf(lugar.grupoId) === freteNorm(tr[lado + 'Uf']) ? 0 : -1;
+  }
+  if (gid) {
+    const g = _freteGrupos[gid];
+    if (!g) return -1;
+    const ok = g.cidades.some(c => c.uf === freteNorm(lugar.uf) && freteNorm(c.nome) === freteNorm(lugar.cidade));
+    return ok ? 1 : -1;
+  }
+  if (freteNorm(tr[lado + 'Uf']) !== freteNorm(lugar.uf)) return -1;
+  const cid = tr[lado + 'Cidade'];
+  if (!cid) return 0;
+  return freteNorm(cid) === freteNorm(lugar.cidade) ? 2 : -1;
+}
+
+// Pontua o quanto um trecho casa com origem/destino: -1 = nao casa.
+// Mais especifico vence: cidade > trecho cadastrado > estado todo; o destino
+// pesa mais que a origem.
+function freteTrechoPontos(tr, origem, destino) {
+  const o = freteLadoPontos(tr, 'origem', origem);
+  if (o < 0) return -1;
+  const d = freteLadoPontos(tr, 'destino', destino);
+  if (d < 0) return -1;
+  return o + d * 4;
+}
+
+// UF de um trecho cadastrado quando todas as cidades sao do mesmo estado ('' se misturado).
+function freteGrupoUf(grupoId) {
+  const g = _freteGrupos[grupoId];
+  const ufs = g ? [...new Set(g.cidades.map(c => c.uf))] : [];
+  return ufs.length === 1 ? ufs[0] : '';
+}
+
+// Texto de um lado do trecho: "Itajaí/SC", "SP (estado todo)" ou "Trecho SC_Capital".
+function freteLadoTxt(tr, lado) {
+  const gid = tr[lado + 'GrupoId'];
+  if (gid) return `Trecho ${(_freteGrupos[gid] || {}).nome || tr[lado + 'GrupoNome'] || '?'}`;
+  const cid = tr[lado + 'Cidade'];
+  return cid ? `${cid}/${tr[lado + 'Uf']}` : `${tr[lado + 'Uf']} (estado todo)`;
+}
+
+function freteTrechoTxt(tr) {
+  return `${freteLadoTxt(tr, 'origem')} → ${freteLadoTxt(tr, 'destino')}`;
+}
+
+function freteMelhorTrecho(tabela, origem, destino) {
+  let melhor = null;
+  for (const tr of tabela.trechos || []) {
+    const p = freteTrechoPontos(tr, origem, destino);
+    if (p >= 0 && (!melhor || p > melhor.pontos)) melhor = { trecho: tr, pontos: p };
+  }
+  return melhor;
+}
+
+// Vigencia: `vigencia` e a data FINAL (tabela "valida ate"); `vigenciaInicio`
+// e opcional (vazia = vale desde sempre ate a data final).
+function freteVigente(t, data) {
+  if (!data) return true;
+  if (t.vigencia && data > t.vigencia) return false;
+  if (t.vigenciaInicio && data < t.vigenciaInicio) return false;
+  return true;
+}
+
+function freteVigTxt(t) {
+  const f = iso => iso ? iso.split('-').reverse().join('/') : '';
+  return t.vigenciaInicio ? `${f(t.vigenciaInicio)} a ${f(t.vigencia)}` : `válida até ${f(t.vigencia)}`;
+}
+
+// Escolhe a tabela para um frete: mesmo servico, vigente na data (data <=
+// valida ate, e >= inicio se houver) e com trecho que case com origem/destino.
+// Entre as candidatas: a de inicio mais recente (sem inicio = mais antiga);
+// empate -> trecho mais especifico (com cidade); empate -> a que termina antes.
+// Retorna {tabela, trecho, pontos} ou null.
+function freteAcharTabela(tabelas, { servicoId, data, origem, destino }) {
+  let melhor = null;
+  for (const t of tabelas) {
+    if (servicoId && t.servicoId !== servicoId) continue;
+    if (!freteVigente(t, data)) continue;
+    const m = freteMelhorTrecho(t, origem, destino);
+    if (!m) continue;
+    const ini = t.vigenciaInicio || '', iniM = melhor ? (melhor.tabela.vigenciaInicio || '') : '';
+    if (!melhor || ini > iniM ||
+        (ini === iniM && (m.pontos > melhor.pontos ||
+          (m.pontos === melhor.pontos && (t.vigencia || '9999') < (melhor.tabela.vigencia || '9999'))))) {
+      melhor = { tabela: t, ...m };
+    }
+  }
+  return melhor;
+}
+
+// ---------- CALCULO ----------
+
+function freteFaixa(faixas, x) {
+  return (faixas || []).find(f => x >= (f.de ?? 0) && (f.ate === null || f.ate === undefined || x <= f.ate)) || null;
+}
+
+// As regras (valores) sao de cada TRECHO: trecho.regras = {GRIS: {...}, ...};
+// a tabela so diz quais itens entram (composicao) e as opcoes gerais.
+// entrada: {peso (kg, peso REAL), m3, valorNF, valorCte (opcional), ufOrigem, ufDestino}
+// aliquotasIcms: {'SC-SP': 12, ...} (Cadastro > ICMS) — usado se a tabela
+//   tiver "Soma ICMS ao frete" = SIM: total = subtotal / (1 - aliquota/100).
+// Retorna {itens:[{item, rotulo, valor, conta, obs:[]}], subtotal,
+//   icms: null | {aliquota, valor, conta}, total, avisos:[],
+//   pesos: {real, m3, fator, cubado, considerado}}
+function freteCalcular(tabela, trecho, entrada, aliquotasIcms) {
+  const regras = (trecho && trecho.regras) || {};
+  const dec = Number.isInteger(tabela.precisao) ? tabela.precisao : 2;
+  const arred = v => Math.round(v * 10 ** dec) / 10 ** dec;
+  const pesoReal = +entrada.peso || 0;
+  const m3 = +entrada.m3 || 0;
+  const fator = +tabela.fatorCubagem || 0;
+  const pesoCubado = fator > 0 ? Math.round(m3 * fator * 1000) / 1000 : 0;
+  const peso = Math.max(pesoReal, pesoCubado);   // peso considerado
+  const nf = +entrada.valorNF || 0;
+  const temCte = entrada.valorCte !== null && entrada.valorCte !== undefined && entrada.valorCte !== '';
+
+  const comp = (tabela.composicao || []).filter(k => k in TAB_ROTULO);
+  // % sobre CT-e por ultimo: sem valor de CT-e informado, a base e a soma dos demais itens.
+  const ordem = comp.filter(k => TAB_TIPO[k] !== 'PCT_CTE').concat(comp.filter(k => TAB_TIPO[k] === 'PCT_CTE'));
+
+  const itens = [];
+  const avisos = [];
+  let subtotal = 0;
+
+  for (const k of ordem) {
+    const r = regras[k] || {};
+    const tipo = TAB_TIPO[k];
+    const rotulo = TAB_ROTULO[k];
+    const obs = [];
+    let valor = 0;
+    let conta = '';
+
+    if (!tipo) {
+      itens.push({ item: k, rotulo, valor: 0, conta: 'Regra a definir — não calculado', obs });
+      avisos.push(`${rotulo}: regra ainda não definida, ficou fora do total.`);
+      continue;
+    }
+
+    switch (tipo) {
+      case 'PCT_NF': {
+        const pct = r.pct || 0;
+        valor = nf * pct / 100;
+        conta = `R$ ${freteFmt(nf)} (NF) × ${freteFmtNum(pct)}%`;
+        break;
+      }
+      case 'PCT_CTE': {
+        const pct = r.pct || 0;
+        const base = temCte ? +entrada.valorCte : subtotal;
+        valor = base * pct / 100;
+        conta = `R$ ${freteFmt(base)} (${temCte ? 'CT-e informado' : 'soma dos demais itens'}) × ${freteFmtNum(pct)}%`;
+        break;
+      }
+      case 'FIXO': {
+        valor = r.valor || 0;
+        conta = r.valor ? 'valor fixo' : 'não informado';
+        break;
+      }
+      case 'FRACAO': {
+        if (!r.fracaoKg) {
+          conta = 'fração (kg) não informada';
+          avisos.push(`${rotulo}: informe a fração em kg na tabela.`);
+          break;
+        }
+        if (r.franquia > 0) {
+          if (peso <= r.franquia) {
+            valor = r.valorFranquia || 0;
+            conta = `${freteFmtNum(peso)} kg dentro da franquia (até ${freteFmtNum(r.franquia)} kg) = R$ ${freteFmt(r.valorFranquia)}`;
+          } else {
+            const exc = peso - r.franquia;
+            const qtd = Math.ceil(exc / r.fracaoKg);
+            valor = (r.valorFranquia || 0) + qtd * (r.valor || 0);
+            conta = `franquia ${freteFmtNum(r.franquia)} kg = R$ ${freteFmt(r.valorFranquia)} + excedente ${freteFmtNum(exc)} kg ÷ ${freteFmtNum(r.fracaoKg)} kg = ${qtd} fração(ões) × R$ ${freteFmt(r.valor)}`;
+          }
+          break;
+        }
+        const qtd = Math.ceil(peso / r.fracaoKg);
+        valor = qtd * (r.valor || 0);
+        conta = `${freteFmtNum(peso)} kg ÷ ${freteFmtNum(r.fracaoKg)} kg = ${qtd} fração(ões) × R$ ${freteFmt(r.valor)}`;
+        break;
+      }
+      case 'FAIXA_PESO':
+      case 'FAIXA_M3': {
+        const porPeso = tipo === 'FAIXA_PESO';
+        const x = porPeso ? peso : m3;
+        const un = porPeso ? 'kg' : 'm³';
+        const f = freteFaixa(r.faixas, x);
+        if (!f) {
+          conta = `${freteFmtNum(x)} ${un} fora das faixas cadastradas`;
+          avisos.push(`${rotulo}: ${freteFmtNum(x)} ${un} não cai em nenhuma faixa da tabela.`);
+          break;
+        }
+        const ate = f.ate === null || f.ate === undefined ? 'acima' : freteFmtNum(f.ate);
+        const nomeFaixa = `faixa ${freteFmtNum(f.de ?? 0)} a ${ate} ${un}`;
+        if (porPeso) {
+          const lista = r.faixas || [];
+          const ant = lista[lista.indexOf(f) - 1] || null;
+          const vazio = v => v === null || v === undefined || v === '';
+          const excKg = +f.valor || 0;                     // R$/kg excedente
+          let fixo = f.valorFranquia;                       // valor da faixa
+          if (vazio(fixo) && excKg > 0 && ant) fixo = ant.valorFranquia;
+          fixo = +fixo || 0;
+          if (excKg > 0) {
+            const franq = !vazio(f.franquia) ? +f.franquia : (ant && !vazio(ant.ate) ? +ant.ate : +(f.de || 0));
+            const exc = Math.max(0, x - franq);
+            valor = fixo + exc * excKg;
+            conta = `R$ ${freteFmt(fixo)} (até ${freteFmtNum(franq)} kg) + excedente ${freteFmtNum(exc)} kg × R$ ${freteFmt(excKg)} (${nomeFaixa})`;
+          } else {
+            valor = fixo;
+            conta = `${freteFmtNum(x)} kg na ${nomeFaixa} = R$ ${freteFmt(fixo)}`;
+          }
+          break;
+        }
+        valor = x * (f.valor || 0);
+        conta = `${freteFmtNum(x)} ${un} × R$ ${freteFmt(f.valor)} (${nomeFaixa})`;
+        break;
+      }
+    }
+
+    if (r.minimo > 0 && valor < r.minimo) {
+      valor = r.minimo;
+      obs.push(`abaixo do mínimo → R$ ${freteFmt(r.minimo)}`);
+    }
+
+    valor = arred(valor);
+    subtotal += valor;
+    itens.push({ item: k, rotulo, valor, conta, obs });
+  }
+
+  subtotal = arred(subtotal);
+  let icms = null;
+  let total = subtotal;
+  if (tabela.somaIcms) {
+    const chave = `${freteNorm(entrada.ufOrigem)}-${freteNorm(entrada.ufDestino)}`;
+    const aliq = (aliquotasIcms || {})[chave];
+    if (aliq === undefined || aliq === null) {
+      avisos.push(`ICMS: sem alíquota cadastrada para ${chave} (Cadastro > ICMS) — total sem ICMS.`);
+    } else {
+      total = arred(subtotal / (1 - aliq / 100));
+      icms = {
+        aliquota: aliq,
+        valor: arred(total - subtotal),
+        conta: `R$ ${freteFmt(subtotal, dec)} ÷ (1 − ${freteFmtNum(aliq)}%) = R$ ${freteFmt(total, dec)} (${chave})`,
+      };
+    }
+  }
+
+  return { itens, subtotal, icms, total, avisos,
+    pesos: { real: pesoReal, m3, fator, cubado: pesoCubado, considerado: peso } };
+}

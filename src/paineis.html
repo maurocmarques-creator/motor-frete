@@ -1,0 +1,169 @@
+<!-- TAB: CADASTRO > SERVICO -->
+<div id="tab-cad-servico" class="mf-painel">
+  <div class="table-card">
+    <h3 style="margin-bottom:12px">Cadastro — Serviço</h3>
+    <div class="cad-form" id="cad-servico-form" style="display:none">
+      <input id="cad-servico-input" type="text" maxlength="200" placeholder="Digite o serviço..."
+        onkeydown="if(event.key==='Enter')salvarServico()">
+      <button id="cad-servico-btn" class="cad-btn" type="button" onclick="salvarServico()">Salvar</button>
+    </div>
+    <div id="cad-servico-msg" style="font-size:.78rem;color:#64748b;margin-bottom:10px"></div>
+    <table>
+      <thead><tr><th>Serviço</th><th style="width:170px">Cadastrado em</th><th style="width:90px"></th></tr></thead>
+      <tbody id="tb-cad-servico"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- TAB: CADASTRO > TABELA (logica em cadastro-tabela.js) -->
+<div id="tab-cad-tabela" class="mf-painel">
+  <div class="table-card" id="cad-tabela-lista">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+      <h3 style="margin:0">Cadastro — Tabelas</h3>
+      <button id="cad-tabela-nova" class="cad-btn" type="button" onclick="novaTabela()" style="display:none">+ Cadastrar nova tabela</button>
+    </div>
+    <div id="cad-tabela-msg" style="font-size:.78rem;color:#64748b;margin-bottom:10px"></div>
+    <table>
+      <thead><tr><th>Nome da tabela</th><th>Serviço</th><th style="width:170px">Vigência</th><th style="width:100px">Situação</th><th style="width:90px">Tipo</th><th style="width:110px">Trechos</th></tr></thead>
+      <tbody id="tb-cad-tabela"></tbody>
+    </table>
+  </div>
+  <div class="table-card" id="cad-tabela-form" style="display:none"></div>
+  <div class="table-card" id="cad-tabela-trechos" style="display:none"></div>
+</div>
+
+<!-- TAB: CADASTRO > ICMS (logica em cadastro-icms.js) -->
+<div id="tab-cad-icms" class="mf-painel">
+  <div class="table-card">
+    <h3 style="margin-bottom:6px">Cadastro — ICMS (alíquota rodoviária por UF de origem × destino)</h3>
+    <div style="font-size:.76rem;color:#64748b;margin-bottom:10px">Usada quando a tabela tem "Soma imposto (ICMS) ao frete" = SIM: frete com ICMS = soma dos itens ÷ (1 − alíquota).</div>
+    <div id="cad-icms-acoes" style="display:none;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <label class="cad-btn" style="background:var(--primary-light)">📥 Importar planilha (.xlsx)
+        <input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarIcms(this)"></label>
+      <button class="cad-btn" type="button" onclick="salvarIcms()">💾 Salvar</button>
+    </div>
+    <div id="cad-icms-msg" style="font-size:.78rem;color:#64748b;margin-bottom:10px"></div>
+    <div id="cad-icms-matriz" style="overflow-x:auto"></div>
+  </div>
+</div>
+
+<!-- TAB: CADASTRO > CIDADE (logica em cadastro-cidade.js) -->
+<div id="tab-cad-cidade" class="mf-painel">
+  <div class="table-card">
+    <h3 style="margin-bottom:10px">Cadastro — Cidades</h3>
+    <div id="cad-cidade-form" style="display:none;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px" class="tr-par">
+      <input id="cid-n-nome" type="text" placeholder="Nova cidade" style="min-width:220px">
+      <select id="cid-n-uf"></select>
+      <input id="cid-n-ibge" type="text" placeholder="Código IBGE (opcional)" style="min-width:150px;flex:0">
+      <button class="cad-btn" type="button" onclick="incluirCidade()">+ Incluir</button>
+    </div>
+    <div class="tr-par" style="margin-bottom:8px;flex-wrap:wrap">
+      <select id="cid-f-uf" onchange="renderCidades()"></select>
+      <input id="cid-f-busca" type="text" placeholder="🔍 Buscar cidade..." oninput="renderCidades()">
+    </div>
+    <div id="cad-cidade-msg" style="font-size:.78rem;color:#64748b;margin-bottom:8px"></div>
+    <table>
+      <thead><tr><th>Cidade</th><th style="width:60px">UF</th><th style="width:120px">Código IBGE</th><th style="width:90px"></th></tr></thead>
+      <tbody id="tb-cad-cidade"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- TAB: CADASTRO > TRECHO (grupos de cidades; logica em cadastro-trecho.js) -->
+<div id="tab-cad-grupo" class="mf-painel">
+  <div class="table-card" id="cad-grupo-lista">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;flex-wrap:wrap">
+      <h3 style="margin:0">Cadastro — Trechos</h3>
+      <button id="cad-grupo-novo" class="cad-btn" type="button" onclick="novoGrupo()" style="display:none">+ Novo trecho</button>
+    </div>
+    <div style="font-size:.76rem;color:#64748b;margin-bottom:10px">Grupo de cidades com nome (ex.: SC_Capital). Pode ser usado como origem ou destino nos trechos das tabelas: a regra vale para qualquer cidade do grupo.</div>
+    <div id="cad-grupo-msg" style="font-size:.78rem;color:#64748b;margin-bottom:10px"></div>
+    <table>
+      <thead><tr><th>Trecho</th><th style="width:80px">Cidades</th><th style="width:120px">UFs</th><th>Cidades (amostra)</th></tr></thead>
+      <tbody id="tb-cad-grupo"></tbody>
+    </table>
+  </div>
+  <div class="table-card" id="cad-grupo-form" style="display:none"></div>
+</div>
+
+<!-- TAB: AUDITORIA (logica em auditoria.js) -->
+<div id="tab-auditoria" class="mf-painel">
+  <div class="table-card" style="margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+      <h3 style="margin:0">Auditoria — frete do portal × tabela cadastrada</h3>
+      <button class="cad-btn" type="button" style="background:var(--green)" onclick="audExportar()">📥 Exportar Excel</button>
+    </div>
+    <div style="font-size:.74rem;color:#64748b;margin-bottom:10px">Cada minuta é recalculada pela tabela do serviço dela, vigente na emissão, no trecho origem → local de entrega, com o peso calculado, a cubagem e o valor da mercadoria do Excel. Clique numa minuta para ver item a item.</div>
+    <div class="aud-filtros">
+      <select id="aud-f-mes" onchange="audAplicarFiltros()"></select>
+      <select id="aud-f-servico" onchange="audAplicarFiltros()"></select>
+      <select id="aud-f-uf" onchange="audAplicarFiltros()"></select>
+      <select id="aud-f-status" onchange="audAplicarFiltros()">
+        <option value="">Todos os status</option><option value="OK">OK</option><option value="DIVERGENTE">Divergentes</option>
+        <option value="SEM_TABELA">Sem tabela/trecho</option><option value="SEM_SERVICO">Serviço não cadastrado</option><option value="COTACAO">Com cotação</option>
+      </select>
+      <label style="font-size:.74rem;color:#475569">Tolerância R$ <input id="aud-f-tol" type="text" inputmode="decimal" value="0,10" style="width:60px" onchange="audAplicarFiltros()"></label>
+      <input id="aud-f-busca" type="text" placeholder="🔍 Minuta, CT-e, NF, destinatário..." oninput="audAplicarFiltros()" style="min-width:220px;flex:1">
+    </div>
+    <div id="aud-msg" style="font-size:.78rem;color:#64748b;margin-top:6px"></div>
+    <div id="aud-resumo" class="aud-resumo"></div>
+  </div>
+  <div class="table-card" style="overflow-x:auto">
+    <table>
+      <thead><tr><th>Minuta</th><th>Emissão</th><th>Serviço</th><th>Tabela</th><th>Cotação</th><th>Origem</th><th>Destino</th><th style="text-align:right">Valor mercadoria</th>
+        <th style="text-align:right">Peso (kg)</th><th style="text-align:right">Cubagem (m³)</th><th style="text-align:right">Frete Excel</th>
+        <th style="text-align:right">Frete tabela</th><th style="text-align:right">Diferença</th><th>Status</th></tr>
+        <tr class="aud-col-filtros"><th><input id="aud-c-minuta" class="aud-col-f" type="text" placeholder="Minuta / CT-e" oninput="audAplicarFiltros()"></th><th><input id="aud-c-emissao" class="aud-col-f" type="text" placeholder="dd/mm" oninput="audAplicarFiltros()"></th><th><input id="aud-c-servico" class="aud-col-f" type="text" placeholder="Serviço" oninput="audAplicarFiltros()"></th><th><input id="aud-c-tabela_portal" class="aud-col-f" type="text" placeholder="Tabela" oninput="audAplicarFiltros()"></th><th><input id="aud-c-cotacao" class="aud-col-f" type="text" placeholder="sim/não" oninput="audAplicarFiltros()"></th><th><input id="aud-c-origem" class="aud-col-f" type="text" placeholder="Origem" oninput="audAplicarFiltros()"></th><th><input id="aud-c-destino" class="aud-col-f" type="text" placeholder="Destino" oninput="audAplicarFiltros()"></th><th><input id="aud-c-nf" class="aud-col-f" type="text" placeholder=">1000" oninput="audAplicarFiltros()"></th><th><input id="aud-c-peso" class="aud-col-f" type="text" placeholder=">100" oninput="audAplicarFiltros()"></th><th><input id="aud-c-m3" class="aud-col-f" type="text" placeholder="m³" oninput="audAplicarFiltros()"></th><th><input id="aud-c-excel" class="aud-col-f" type="text" placeholder="R$" oninput="audAplicarFiltros()"></th><th><input id="aud-c-tabela" class="aud-col-f" type="text" placeholder="R$" oninput="audAplicarFiltros()"></th><th><input id="aud-c-dif" class="aud-col-f" type="text" placeholder="<0" oninput="audAplicarFiltros()"></th><th><input id="aud-c-status" class="aud-col-f" type="text" placeholder="Status" oninput="audAplicarFiltros()"></th></tr></thead>
+      <tbody id="tb-auditoria"></tbody>
+    </table>
+    <div id="aud-rodape" style="font-size:.75rem;color:#64748b;margin-top:8px"></div>
+  </div>
+</div>
+
+<!-- TAB: SIMULADOR (logica em simulador.js) -->
+<div id="tab-simulador" class="mf-painel">
+  <div class="tf-grid" style="grid-template-columns:minmax(280px,380px) 1fr;align-items:start">
+    <div class="table-card tf-col">
+      <h3 style="margin-bottom:12px">Simulador de frete</h3>
+      <div id="sim-msg" style="font-size:.78rem;color:#64748b;margin-bottom:8px"></div>
+      <label class="tf-lbl">Serviço</label>
+      <select id="sim-servico" style="width:100%;margin-bottom:10px" onchange="simAtualizarTabelas()"></select>
+      <label class="tf-lbl">Tabela</label>
+      <select id="sim-tabela" style="width:100%;margin-bottom:10px"></select>
+      <label class="tf-lbl">Data do frete <span style="font-weight:400;color:#64748b">(usa a tabela válida nessa data)</span></label>
+      <input id="sim-data" type="date" style="margin-bottom:10px">
+      <div><label class="tf-lbl">Trecho de início (origem)</label>
+      <div class="cid-ac"><input id="sim-orig" type="text" autocomplete="off" placeholder="Cidade ou trecho cadastrado..."><div class="cid-ac-lista" hidden></div>
+        <select id="sim-ouf" hidden></select><input id="sim-ocid" type="hidden"><input id="sim-ogrp" type="hidden"></div>
+      <select id="sim-ogrp-sel" class="tr-grp-sel" style="margin-bottom:10px"></select></div>
+      <div><label class="tf-lbl">Trecho de fim (destino)</label>
+      <div class="cid-ac"><input id="sim-dest" type="text" autocomplete="off" placeholder="Cidade ou trecho cadastrado..."><div class="cid-ac-lista" hidden></div>
+        <select id="sim-duf" hidden></select><input id="sim-dcid" type="hidden"><input id="sim-dgrp" type="hidden"></div>
+      <select id="sim-dgrp-sel" class="tr-grp-sel" style="margin-bottom:10px"></select></div>
+      <div class="tf-campos sim-num">
+        <label>Peso real (kg)<input id="sim-peso" type="text" inputmode="decimal"></label>
+        <label>Cubagem (m³)<input id="sim-m3" type="text" inputmode="decimal"></label>
+        <label>Valor da NF (R$)<input id="sim-nf" type="text" inputmode="decimal"></label>
+        <label>Valor do CT-e (R$)<input id="sim-cte" type="text" inputmode="decimal" placeholder="opcional"></label>
+      </div>
+      <div class="tf-dica" style="margin:4px 0 12px">Valor do CT-e: base do "% sobre CT-e". Em branco, usa a soma dos demais itens.</div>
+      <button class="cad-btn" type="button" onclick="simular()" style="width:100%">Calcular</button>
+    </div>
+    <div class="table-card" id="sim-resultado"><div style="color:#64748b;font-size:.85rem">Preencha ao lado e clique em Calcular.</div></div>
+  </div>
+  <div class="table-card" style="margin-top:16px;overflow-x:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <h3 style="margin:0">Simulações salvas</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input id="sim-salvas-busca" type="text" placeholder="🔍 Buscar descrição, cidade, serviço..." oninput="renderSimSalvas()" style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:.8rem;min-width:240px">
+        <button class="cad-btn" type="button" style="background:var(--green)" onclick="exportarSimSalvas()">📥 Exportar Excel</button>
+      </div>
+    </div>
+    <div id="sim-salvas-msg" style="font-size:.76rem;color:#64748b;margin-bottom:6px"></div>
+    <table>
+      <thead><tr><th>Salva em</th><th>Descrição</th><th>Serviço / Tabela</th><th>Origem → Destino</th><th style="text-align:right">Peso real (kg)</th>
+        <th style="text-align:right">Cubagem (m³)</th><th style="text-align:right">Peso consid. (kg)</th><th style="text-align:right">Valor NF</th><th style="text-align:right">Total</th><th></th></tr></thead>
+      <tbody id="tb-sim-salvas"></tbody>
+    </table>
+  </div>
+</div>

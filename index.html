@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Motor de Frete — PortoEx</title>
+<style>
+  body{margin:0;background:#eef2f7;font-family:'Segoe UI',system-ui,sans-serif;color:#1e293b}
+  header{background:#1a3a5c;color:#fff;padding:18px 24px}
+  header h1{margin:0;font-size:1.2rem}
+  header p{margin:4px 0 0;font-size:.82rem;opacity:.8}
+  main{max-width:1400px;margin:0 auto;padding:16px}
+  pre{background:#0f172a;color:#e2e8f0;padding:12px 14px;border-radius:8px;font-size:.78rem;overflow:auto}
+  .caixa{background:#fff;border-radius:10px;padding:14px 16px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.08);font-size:.86rem}
+</style>
+</head>
+<body>
+<header>
+  <h1>Motor de Frete</h1>
+  <p>Cadastro (Serviço, Tabela, Trecho, ICMS, Cidade) · Simulador · Auditoria — módulo reaproveitável da PortoEx</p>
+</header>
+<main>
+  <div class="caixa">
+    <b>Como usar em outro projeto</b> (detalhes no README do repositório):
+    <pre>&lt;div id="motor"&gt;&lt;/div&gt;
+&lt;script src="https://maurocmarques-creator.github.io/motor-frete/dist/motor-frete.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  MotorFrete.iniciar({
+    alvo: '#motor',
+    projeto: 'nome_do_cliente',
+    editores: ['mauro.cesar@portoex.com.br'],
+    auditoria: { linhas: minhasMinutas },   // opcional
+  });
+&lt;/script&gt;</pre>
+    Esta página é só uma demonstração, somente leitura (projeto <code>demo</code>).
+  </div>
+  <div id="motor"></div>
+</main>
+<script src="dist/motor-frete.js"></script>
+<script>
+  // Demonstracao: somente leitura (sem login), com 3 minutas de exemplo na Auditoria.
+  MotorFrete.iniciar({
+    alvo: '#motor',
+    projeto: 'demo',
+    identidade: async () => '',
+    auditoria: {
+      publica: true,
+      linhas: [
+        { MINUTA: '1001', CTE: '5001-1', 'DATA EMISSAO': '2026-09-10', SERVICO: 'EXEMPLO', TABELA_PORTAL: 'TAB_EXEMPLO', COTACAO: 'N',
+          ORIG_CIDADE: 'ITAJAI', ORIG_UF: 'SC', EFF_CIDADE: 'SAO PAULO', EFF_UF: 'SP', EFF_LOCAL: 'CLIENTE EXEMPLO', NF_DOC: '123',
+          'NF VALOR': 10000, PESO_REAL: 80, PESO_CUBADO: 60, PESO_CALC: 80, M3: 0.2, 'FRETE TOTAL': 250, 'TX. ENTREGA': 200, 'TX. GRIS': 15 },
+        { MINUTA: '1002', CTE: '5002-1', 'DATA EMISSAO': '2026-09-11', SERVICO: 'EXEMPLO', TABELA_PORTAL: 'TAB_EXEMPLO', COTACAO: 'S', COTACAO_NUM: '777',
+          ORIG_CIDADE: 'ITAJAI', ORIG_UF: 'SC', EFF_CIDADE: 'CURITIBA', EFF_UF: 'PR', EFF_LOCAL: 'CLIENTE EXEMPLO', NF_DOC: '124',
+          'NF VALOR': 5000, PESO_REAL: 30, PESO_CUBADO: 45, PESO_CALC: 45, M3: 0.15, 'FRETE TOTAL': 180, 'TX. ENTREGA': 160 },
+        { MINUTA: '1003', CTE: '5003-1', 'DATA EMISSAO': '2026-09-12', SERVICO: 'SEM_CADASTRO', TABELA_PORTAL: 'TAB_EXEMPLO', COTACAO: 'N',
+          ORIG_CIDADE: 'ITAJAI', ORIG_UF: 'SC', EFF_CIDADE: 'PORTO ALEGRE', EFF_UF: 'RS', EFF_LOCAL: 'CLIENTE EXEMPLO', NF_DOC: '125',
+          'NF VALOR': 2000, PESO_REAL: 12, PESO_CUBADO: 3, PESO_CALC: 12, M3: 0.01, 'FRETE TOTAL': 95, 'TX. ENTREGA': 90 },
+      ],
+    },
+  });
+</script>
+</body>
+</html>
