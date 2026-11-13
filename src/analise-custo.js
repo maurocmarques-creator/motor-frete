@@ -427,7 +427,7 @@ function ancRenderTabela() {
   const num = (x, d) => `<td style="text-align:right">${ancFmt(x, d)}</td>`;
   tb.innerHTML = rows.slice(0, ANC_LIM_TELA).map(c => {
     const kgCel = k => { const v = ancKg(c, k), alto = k !== 'frete' && v > p75[k][ancFaixaDe(c.peso)]; return `<td style="text-align:right;${alto ? 'background:#fde2e2;color:#b42318;font-weight:600' : ''}">${v ? ancFmt(v) : ''}</td>`; };
-    return `<tr${c.excl ? ' style="opacity:.55"' : ''}><td>${cadEsc(c.minuta)}</td><td>${dt(c.data)}</td><td>${cadEsc(c.base)}</td><td>${cadEsc(c.cliente)}</td><td>${cadEsc(c.servico)}</td><td>${cadEsc(c.destino)}</td><td title="${cadEsc(c.zonas.join(', '))}">${cadEsc(ancZonaTexto(c))}</td>` +
+    return `<tr${c.excl ? ' style="opacity:.55"' : ''}><td>${cadEsc(c.minuta)}</td><td>${dt(c.data)}</td><td>${cadEsc(c.base)}</td><td class="t" title="${cadEsc(c.cliente)}">${cadEsc(c.cliente)}</td><td class="t" title="${cadEsc(c.servico)}">${cadEsc(c.servico)}</td><td class="t" title="${cadEsc(c.destino)}">${cadEsc(c.destino)}</td><td title="${cadEsc(c.zonas.join(', '))}">${cadEsc(ancZonaTexto(c))}</td>` +
       num(c.peso) + num(c.nf) + num(c.frete) + kgCel('frete') +
       ['coleta', 'entrega', 'transf'].map(k => num(c.custos[k]) + kgCel(k)).join('') +
       `<td style="text-align:right;color:${c.lucro < 0 ? '#dc2626' : '#16a34a'}">${ancFmt(c.lucro)}</td><td style="text-align:right">${ancPct(c.frete ? c.lucro / c.frete : 0)}</td></tr>`;
