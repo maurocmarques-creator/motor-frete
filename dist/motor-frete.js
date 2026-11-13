@@ -1,4 +1,4 @@
-/*! Motor de Frete v1.3.0 — PortoEx — gerado em 13/11/2026 08:31 por build.py (nao editar: mude src/ e rode o build) */
+/*! Motor de Frete v1.4.0 — PortoEx — gerado em 13/11/2026 08:38 por build.py (nao editar: mude src/ e rode o build) */
 (function () {
 'use strict';
 
@@ -6,7 +6,7 @@
 // nucleo.js — Motor de Frete: configuracao, banco (Supabase), permissao e utilidades.
 // Primeiro arquivo do pacote; os demais usam estas funcoes/variaveis globais.
 
-const MF = { cfg: {}, versao: '1.3.0', build: '13/11/2026 08:31', linhasCache: null };
+const MF = { cfg: {}, versao: '1.4.0', build: '13/11/2026 08:38', linhasCache: null };
 // Endereco deste script (dist/motor-frete.js): arquivos de apoio, como cidaten-trechos.json, ficam na mesma pasta.
 const MF_SCRIPT_URL = (document.currentScript && document.currentScript.src) || '';
 
@@ -2655,7 +2655,9 @@ function audExportar() {
 let _ancLinhas = [];       // todas as linhas importadas
 let _ancHdr = [];          // cabeçalho da tela 147 (para a exportação)
 let _ancArquivos = [];     // arquivos importados: { nome, n }
-let _ancBase = [];         // linhas depois dos filtros
+let _ancLista = [];        // linhas depois dos filtros (as que aparecem na lista)
+let _ancBase = [];         // linhas que entram nas contas: as da lista que estão marcadas
+let _ancDesm = new Set();  // minutas desmarcadas na lista: ficam fora dos cartões e quadros (para calibrar a análise)
 const _ancSel = { servico: new Set(), cliente: new Set(), base: new Set(), trecho: new Set() };   // marcados nos filtros de cliente e base (vazio = todos)
 const ANC_MULTI = { servico: ['serviços', 'Todos os serviços', 'servico'], cliente: ['clientes', 'Todos os clientes', 'cliente'], base: ['bases', 'Todas as bases', 'base'], trecho: ['trechos', 'Todos os trechos', 'zonas'] };
 const ANC_SEM_TRECHO = '(sem trecho)';
@@ -2883,7 +2885,7 @@ function ancRemoverArquivo(i) {
   ancMostrarArquivos(); ancMontarFiltros(false); ancAplicar();
 }
 function ancLimpar() {
-  _ancLinhas = []; _ancHdr = []; _ancArquivos = []; _ancBase = []; _ancOrd = null; _ancFMin = new Set(); _ancFMinInfo = null; _ancAba = 'analise'; ancMostrarFMin();
+  _ancLinhas = []; _ancHdr = []; _ancArquivos = []; _ancLista = []; _ancBase = []; _ancDesm = new Set(); _ancOrd = null; _ancFMin = new Set(); _ancFMinInfo = null; _ancAba = 'analise'; ancMostrarFMin();
   document.getElementById('anc-msg').textContent = '';
   ancMostrarArquivos();
   ancMontarFiltros(true);
@@ -2938,7 +2940,7 @@ function ancMultiRender(tipo) {
   const busca = freteNorm(document.getElementById(`anc-b-${tipo}`).value), sel = _ancSel[tipo];
   const nomes = Object.keys(cont).sort((a, b) => a.localeCompare(b, 'pt-BR')).filter(n => !busca || freteNorm(n).includes(busca));
   document.getElementById(`anc-l-${tipo}`).innerHTML = nomes.length ? nomes.map(n =>
-    `<label class="anc-multi-item"><input type="checkbox" ${sel.has(n) ? 'checked' : ''} onchange="ancMultiToggle('${tipo}',this.getAttribute('data-n'),this.checked)" data-n="${cadEsc(n)}"> ${cadEsc(n)} <small>(${cont[n]})</small></label>`).join('')
+    `<label class="anc-multi-item"${cont[n] ? '' : ' style="opacity:.45"'}><input type="checkbox" ${sel.has(n) ? 'checked' : ''} onchange="ancMultiToggle('${tipo}',this.getAttribute('data-n'),this.checked)" data-n="${cadEsc(n)}"> ${cadEsc(n)} <small>(${cont[n]})</small></label>`).join('')
     : '<div style="font-size:.76rem;color:#94a3b8;padding:6px">Nada para escolher.</div>';
   const n = sel.size;
   document.getElementById(`anc-btn-${tipo}`).textContent = (n === 0 ? ANC_MULTI[tipo][1] : n === 1 ? [...sel][0] : `${n} ${ANC_MULTI[tipo][0]} selecionados`) + ' ▾';
@@ -2964,7 +2966,8 @@ function ancPassa(c, exceto) {
   return ['servico', 'cliente', 'base', 'trecho'].every(k => k === exceto || !_ancSel[k].size || ancValores(c, k).some(x => _ancSel[k].has(x)));
 }
 function ancAplicar() {
-  _ancBase = _ancLinhas.filter(c => ancPassa(c));
+  _ancLista = _ancLinhas.filter(c => ancPassa(c));
+  _ancBase = _ancLista.filter(c => !_ancDesm.has(c.minuta));
   ['servico', 'cliente', 'base', 'trecho'].forEach(ancMultiRender);   // os números das listas acompanham os demais filtros
   ancRenderAbas();
   ancRenderResumo();
@@ -3013,9 +3016,24 @@ function ancRenderAbas() {
   document.getElementById('anc-titulo').textContent = _ancAba === 'fm' ? 'Frete mínimo — CT-e fora da análise principal' : 'Análise de custo — custo por kg de coleta, transferência e entrega';
 }
 
+// Marca/desmarca minutas na lista: só as marcadas entram nos cartões e quadros.
+function ancMarcar(minuta, marcado) { marcado ? _ancDesm.delete(minuta) : _ancDesm.add(minuta); ancAplicar(); }
+function ancMarcarTodas(marcado) { _ancLista.forEach(c => marcado ? _ancDesm.delete(c.minuta) : _ancDesm.add(c.minuta)); ancAplicar(); }
+
+// Quando os filtros não deixam nenhum CT-e, diz qual filtro está tirando tudo e quantos apareceriam sem ele.
+function ancAvisoVazio() {
+  if (_ancLista.length || !_ancLinhas.length) return '';
+  const rot = { servico: 'Serviço', cliente: 'Cliente', base: 'Base', trecho: 'Trecho' };
+  const dicas = ['servico', 'cliente', 'base', 'trecho'].filter(k => _ancSel[k].size)
+    .map(k => [rot[k], _ancLinhas.filter(c => ancPassa(c, k)).length]).filter(x => x[1] > 0)
+    .map(x => `sem o filtro de <b>${x[0]}</b> apareceriam ${x[1]} CT-e`);
+  const aba = _ancAba === 'fm' ? ' na aba Frete mínimo' : (_ancFMinInfo ? ' na análise (os de frete mínimo ficam na outra aba)' : '');
+  return `<div style="flex-basis:100%;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:8px 12px;font-size:.8rem;color:#9a3412;margin-bottom:8px">Nenhum CT-e com esses filtros${aba}.${dicas.length ? ' ' + dicas.join('; ') + '.' : ''}</div>`;
+}
 function ancRenderResumo() {
   const el = document.getElementById('anc-resumo');
   if (!_ancLinhas.length) { el.innerHTML = '<div style="font-size:.8rem;color:#64748b">Importe a tela 147 para ver a análise.</div>'; return; }
+  const aviso = ancAvisoVazio();
   const rows = _ancBase, F = ancSoma(rows, c => c.frete), L = ancSoma(rows, c => c.lucro), PESO = ancSoma(rows, c => c.peso);
   const card = (rot, val, linhas) => `<div class="aud-card"><div class="aud-card-rot">${rot}</div><div class="aud-card-val">${val}</div>${(linhas || []).map(l => `<div style="font-size:.72rem;color:#475569">${l}</div>`).join('')}</div>`;
   const kg = (valor, titulo) => {
@@ -3031,9 +3049,9 @@ function ancRenderResumo() {
       [`média: <b>R$ ${ancFmt(PESO ? ancSoma(rows, ancSomaCustos) / PESO : 0)}</b>`, `mediana: <b>R$ ${ancFmt(somaMed)}</b>`]),
     card('Lucro/Prejuízo', `<span style="color:${L < 0 ? '#dc2626' : '#16a34a'}">${ancFmt(L)}</span>`),
     card('Margem %', ancPct(F ? L / F : 0)),
-    card(_ancAba === 'fm' ? 'CT-e em frete mínimo' : 'CT-e na análise', String(rows.length), [`de ${_ancLinhas.length} importados`, `${ancFmt(PESO)} kg`]),
+    card(_ancAba === 'fm' ? 'CT-e em frete mínimo' : 'CT-e na análise', String(rows.length), [`de ${_ancLinhas.length} importados`, `${ancFmt(PESO)} kg`].concat(_ancLista.length > rows.length ? [`<b style="color:#b45309">${_ancLista.length - rows.length} desmarcada(s)</b> na lista`] : [])),
   ];
-  el.innerHTML = html.join('');
+  el.innerHTML = aviso + html.join('');
 }
 
 // Monta a tabela de custo por kg (por faixa de peso ou por responsável) para uma lista de CT-e.
@@ -3104,11 +3122,12 @@ function ancRenderTabela() {
   const cols = [['frete', 'Frete/kg'], ['coleta', 'Coleta/kg'], ['entrega', 'Entrega/kg'], ['transf', 'Transf./kg']];
   const seta = k => (_ancOrd && _ancOrd.k === k ? (_ancOrd.d < 0 ? ' ▼' : ' ▲') : ' ⇅');
   const R = 'text-align:right';
-  th.innerHTML = `<tr><th>Minuta</th><th>Data</th><th>Base</th><th>Cliente</th><th>Serviço</th><th>Destino</th><th>Trecho</th><th style="${R}">Peso (kg)</th><th style="${R}">Valor NF</th><th style="${R}">Frete</th>` +
+  const todas = _ancLista.length && _ancLista.every(c => !_ancDesm.has(c.minuta));
+  th.innerHTML = `<tr><th title="Marcar/desmarcar todas as minutas da lista"><input type="checkbox" ${todas ? 'checked' : ''} onchange="ancMarcarTodas(this.checked)"></th><th>Minuta</th><th>Data</th><th>Base</th><th>Cliente</th><th>Serviço</th><th>Destino</th><th>Trecho</th><th style="${R}">Peso (kg)</th><th style="${R}">Valor NF</th><th style="${R}">Frete</th>` +
     `<th style="${R};cursor:pointer;background:#2563a8" onclick="ancOrdenar('frete')" title="Clique para ordenar">Frete/kg${seta('frete')}</th>` +
     ['coleta', 'entrega', 'transf'].map(k => `<th style="${R}">${ANC_CUSTOS[k]}</th><th style="${R};cursor:pointer;background:#2563a8" onclick="ancOrdenar('${k}')" title="Clique para ordenar (maior ↔ menor)">${ANC_CUSTOS[k]}/kg${seta(k)}</th>`).join('') +
     `<th style="${R}">Lucro</th><th style="${R}">Margem</th></tr>`;
-  if (!_ancBase.length) {
+  if (!_ancLista.length) {
     tb.innerHTML = `<tr><td colspan="20" style="color:#64748b">${_ancLinhas.length ? 'Nenhum CT-e com esses filtros.' : 'Nenhum arquivo importado.'}</td></tr>`;
     rod.textContent = '';
     return;
@@ -3116,30 +3135,31 @@ function ancRenderTabela() {
   // limite P75 por faixa de peso (só faixas com 5+ CT-e) para o destaque em vermelho
   const p75 = {};
   ['coleta', 'entrega', 'transf'].forEach(k => { p75[k] = ANC_FAIXAS.map((f, i) => { const e = ancEstat(_ancBase.filter(c => ancFaixaDe(c.peso) === i), c => c.custos[k]); return e.n >= 5 ? e.p75 : Infinity; }); });
-  let rows = _ancBase;
+  let rows = _ancLista;
   if (_ancOrd) rows = [...rows].sort((a, b) => (ancKg(a, _ancOrd.k) - ancKg(b, _ancOrd.k)) * _ancOrd.d);
   const dt = iso => iso ? iso.split('-').reverse().join('/') : '';
   const num = (x, d) => `<td style="text-align:right">${ancFmt(x, d)}</td>`;
   tb.innerHTML = rows.slice(0, ANC_LIM_TELA).map(c => {
     const kgCel = k => { const v = ancKg(c, k), alto = k !== 'frete' && v > p75[k][ancFaixaDe(c.peso)]; return `<td style="text-align:right;${alto ? 'background:#fde2e2;color:#b42318;font-weight:600' : ''}">${v ? ancFmt(v) : ''}</td>`; };
-    return `<tr${c.excl ? ' style="opacity:.55"' : ''}><td>${cadEsc(c.minuta)}</td><td>${dt(c.data)}</td><td>${cadEsc(c.base)}</td><td class="t" title="${cadEsc(c.cliente)}">${cadEsc(c.cliente)}</td><td class="t" title="${cadEsc(c.servico)}">${cadEsc(c.servico)}</td><td class="t" title="${cadEsc(c.destino)}">${cadEsc(c.destino)}</td><td title="${cadEsc(c.zonas.join(', '))}">${cadEsc(ancZonaTexto(c))}</td>` +
+    const marc = !_ancDesm.has(c.minuta);
+    return `<tr${!marc ? ' style="opacity:.4;text-decoration:line-through"' : c.excl ? ' style="opacity:.55"' : ''}><td><input type="checkbox" ${marc ? 'checked' : ''} onchange="ancMarcar('${c.minuta}',this.checked)" title="Marcada entra nas contas; desmarcada fica de fora"></td><td>${cadEsc(c.minuta)}</td><td>${dt(c.data)}</td><td>${cadEsc(c.base)}</td><td class="t" title="${cadEsc(c.cliente)}">${cadEsc(c.cliente)}</td><td class="t" title="${cadEsc(c.servico)}">${cadEsc(c.servico)}</td><td class="t" title="${cadEsc(c.destino)}">${cadEsc(c.destino)}</td><td title="${cadEsc(c.zonas.join(', '))}">${cadEsc(ancZonaTexto(c))}</td>` +
       num(c.peso) + num(c.nf) + num(c.frete) + kgCel('frete') +
       ['coleta', 'entrega', 'transf'].map(k => num(c.custos[k]) + kgCel(k)).join('') +
       `<td style="text-align:right;color:${c.lucro < 0 ? '#dc2626' : '#16a34a'}">${ancFmt(c.lucro)}</td><td style="text-align:right">${ancPct(c.frete ? c.lucro / c.frete : 0)}</td></tr>`;
   }).join('');
-  rod.textContent = `${_ancBase.length} CT-e ${_ancAba === 'fm' ? 'em frete mínimo' : 'na análise'}` + (_ancBase.length > ANC_LIM_TELA ? ` (mostrando os primeiros ${ANC_LIM_TELA}; a exportação leva todos)` : '') +
+  rod.textContent = `${_ancBase.length} CT-e ${_ancAba === 'fm' ? 'em frete mínimo' : 'na análise'}` + (_ancLista.length > _ancBase.length ? ` (${_ancLista.length - _ancBase.length} desmarcada(s) fora das contas)` : '') + (_ancLista.length > ANC_LIM_TELA ? ` (mostrando as primeiras ${ANC_LIM_TELA}; a exportação leva todas)` : '') +
     '. Custo/kg em vermelho = acima do P75 da própria faixa de peso.';
 }
 
 async function ancExportar() {
-  if (!_ancBase.length) return;
+  if (!_ancLista.length) return;
   if (!window.XLSX) await mfCarregarScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
   const aoa = [['Minuta', 'Data', 'Base', 'Cliente', 'Serviço', 'Destino', 'Trecho(s)', 'Peso (kg)', 'Valor NF', 'Frete', 'Frete/kg',
     'Custo coleta', 'Coleta/kg', 'Custo entrega', 'Entrega/kg', 'Custo transferência', 'Transf./kg', 'Resp. coleta', 'Resp. entrega', 'Resp. transferência',
-    'ICMS', 'Seguro', 'Outros', 'Impostos', 'Comissão', 'Lucro líquido', 'Margem']];
-  _ancBase.forEach(c => aoa.push([c.minuta, c.data, c.base, c.cliente, c.servico, c.destino, c.zonas.join('; '), c.peso, c.nf, c.frete, ancKg(c, 'frete'),
+    'ICMS', 'Seguro', 'Outros', 'Impostos', 'Comissão', 'Lucro líquido', 'Margem', 'Na análise']];
+  _ancLista.forEach(c => aoa.push([c.minuta, c.data, c.base, c.cliente, c.servico, c.destino, c.zonas.join('; '), c.peso, c.nf, c.frete, ancKg(c, 'frete'),
     c.custos.coleta, ancKg(c, 'coleta'), c.custos.entrega, ancKg(c, 'entrega'), c.custos.transf, ancKg(c, 'transf'), c.resp.coleta, c.resp.entrega, c.resp.transf,
-    c.icms, c.custos.seguro, ancOutrosCusto(c), c.imposto, c.comis, c.lucro, c.frete ? c.lucro / c.frete : 0]));
+    c.icms, c.custos.seguro, ancOutrosCusto(c), c.imposto, c.comis, c.lucro, c.frete ? c.lucro / c.frete : 0, _ancDesm.has(c.minuta) ? 'Não' : 'Sim']));
   const wb = window.XLSX.utils.book_new();
   window.XLSX.utils.book_append_sheet(wb, window.XLSX.utils.aoa_to_sheet(aoa), 'Analise de custo');
   window.XLSX.writeFile(wb, 'analise_custo.xlsx');
@@ -3333,7 +3353,7 @@ Object.assign(window, {
   // auditoria
   audAplicarFiltros, audFiltrarStatus, audDetalhe, audAbrirSimulador, audExportar,
   // analise de custo (tela 147)
-  ancEscolheu, ancLimpar, ancRemoverArquivo, ancMultiAbrir, ancMultiRender, ancMultiToggle, ancMultiTodos, ancEscolheuZonas, ancEscolheuFMin, ancFMinLimpar, ancAba, ancZonasPadrao, ancAplicar, ancOrdenar, ancRenderEstat, ancExportar,
+  ancEscolheu, ancLimpar, ancRemoverArquivo, ancMultiAbrir, ancMultiRender, ancMultiToggle, ancMultiTodos, ancEscolheuZonas, ancEscolheuFMin, ancMarcar, ancMarcarTodas, ancFMinLimpar, ancAba, ancZonasPadrao, ancAplicar, ancOrdenar, ancRenderEstat, ancExportar,
 });
 
 })();
