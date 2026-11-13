@@ -25,6 +25,7 @@ ORDEM = [
     "cadastro-trecho.js",
     "simulador.js",
     "auditoria.js",
+    "analise-custo.js",
 ]
 
 
@@ -73,6 +74,8 @@ Object.assign(window, {
   simular, simAtualizarTabelas, salvarSimulacao, renderSimSalvas, abrirSimulacao, excluirSimulacao, exportarSimSalvas,
   // auditoria
   audAplicarFiltros, audFiltrarStatus, audDetalhe, audAbrirSimulador, audExportar,
+  // analise de custo (tela 147)
+  ancEscolheu, ancLimpar, ancAplicar, ancOrdenar, ancRenderEstat, ancExportar,
 });
 """
 

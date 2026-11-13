@@ -9,6 +9,7 @@ const MF_ABAS_CARREGAR = {
   'cad-grupo': () => carregarGrupos(),
   'simulador': () => carregarSimulador(),
   'auditoria': () => carregarAuditoria(),
+  'analise-custo': () => carregarAnaliseCusto(),
 };
 
 const MF_CADASTROS = [
@@ -17,7 +18,7 @@ const MF_CADASTROS = [
 ];
 
 // Mostra uma tela do motor (ids: cad-servico, cad-tabela, cad-grupo, cad-icms,
-// cad-cidade, simulador, auditoria) e carrega os dados dela.
+// cad-cidade, simulador, auditoria, analise-custo) e carrega os dados dela.
 function mfMostrar(id) {
   const raiz = document.querySelector('.mf');
   if (!raiz) return;
@@ -37,6 +38,7 @@ function mfMontarHtml(abas) {
         `<div class="mf-subitem" onclick="event.stopPropagation();mfMostrar('${id}')">${rot}</div>`).join('')}</div></div>` : ''}
     ${abas.includes('simulador') ? `<div class="mf-tab" data-mf="simulador" onclick="mfMostrar('simulador')">🧮 Simulador</div>` : ''}
     ${abas.includes('auditoria') ? `<div class="mf-tab" data-mf="auditoria" id="tab-btn-auditoria" style="display:none" onclick="mfMostrar('auditoria')">🔍 Auditoria</div>` : ''}
+    ${abas.includes('analise-custo') ? `<div class="mf-tab" data-mf="analise-custo" onclick="mfMostrar('analise-custo')">📊 Análise de custo</div>` : ''}
     <span class="mf-versao">Motor de Frete v${MF.versao}</span>
   </nav>`;
   // So entram as telas das abas pedidas
@@ -57,7 +59,7 @@ function mfMontarHtml(abas) {
 //   editores: ['a@portoex.com.br'],         // quem inclui/edita/exclui e ve a Auditoria
 //   identidade: async () => 'email',        // opcional; padrao: login do Cloudflare Access
 //   todosEditam: false,                     // true = qualquer um edita (ambiente de teste)
-//   abas: ['cadastro','simulador','auditoria'],
+//   abas: ['cadastro','simulador','auditoria'],   // opcional: 'analise-custo' (tela 147 importada na tela; custo/kg) — fica de fora por padrao
 //   auditoria: { linhas: [...] | () => [...], mapear: r => ({...}) },   // formato no README
 //   chaves: { servicos, tabelas, trechos, simulacoes, icms, cidades },  // opcional (sobrescreve as chaves no banco)
 //   supabase: { url, chave },               // opcional
