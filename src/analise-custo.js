@@ -12,7 +12,7 @@
 
 let _ancLinhas = [];       // todas as linhas importadas
 let _ancHdr = [];          // cabeçalho da tela 147 (para a exportação)
-let _ancArquivo = '';
+let _ancArquivos = [];     // arquivos importados: { nome, n }
 let _ancBase = [];         // linhas depois dos filtros
 let _ancOrd = null;        // { k: 'coleta'|'entrega'|'transf'|'frete', d: -1 | 1 }
 let _ancDropOk = false;
@@ -57,7 +57,7 @@ function ancEstat(lista, valor) {
 }
 
 // ---------- leitura da tela 147 ----------
-async function ancLerArquivo(arquivo) {
+async function ancLerArquivo(arquivo) {   // devolve as linhas com .arquivo = nome do arquivo
   const buf = await arquivo.arrayBuffer(), u8 = new Uint8Array(buf);
   const cab = new TextDecoder('utf-8').decode(u8.slice(0, 4096));
   let aoa;
@@ -91,6 +91,7 @@ async function ancLerArquivo(arquivo) {
         seguro: ancNum(g(r, 'SEGURO')), outros: ancNum(g(r, 'OUTROS')), difal: ancNum(g(r, 'DIFAL')), desp: ancNum(g(r, 'C.DESPACHO')) },
       resp: { coleta: String(g(r, 'RESP. COLETA') || '').trim(), entrega: String(g(r, 'RESP. ENTREGA') || '').trim(), transf: String(g(r, 'RESP. TRANSF') || '').trim() },
     };
+    c.arquivo = arquivo.name;
     c.excl = /COMPLEM/i.test(c.tipo) ? 'complemento' : /REPASSE/i.test(c.servico) ? 'repasse' : /LOGISTIC/i.test(c.servico) ? 'logistico' : '';
     linhas.push(c);
   }
@@ -98,28 +99,50 @@ async function ancLerArquivo(arquivo) {
   return { linhas, hdr: aoa[h].map(x => String(x ?? '').trim()) };
 }
 
-async function ancImportar(arquivo) {
+async function ancImportar(arquivos) {
+  arquivos = [...arquivos];
   const msg = document.getElementById('anc-msg');
   msg.style.color = '#64748b';
-  msg.textContent = 'Lendo "' + arquivo.name + '"...';
-  try {
-    const { linhas, hdr } = await ancLerArquivo(arquivo);
-    _ancLinhas = linhas; _ancHdr = hdr; _ancArquivo = arquivo.name; _ancOrd = null;
-    document.getElementById('anc-arq-nome').textContent = '📄 ' + arquivo.name;
-    msg.textContent = '';
-    ancMontarFiltros(true);
-    ancAplicar();
-  } catch (e) {
-    console.error(e);
-    msg.style.color = '#b91c1c';
-    msg.textContent = e.message || 'Não foi possível ler o arquivo.';
+  const erros = [];
+  for (const arq of arquivos) {
+    msg.textContent = 'Lendo "' + arq.name + '"...';
+    try {
+      const { linhas, hdr } = await ancLerArquivo(arq);
+      const porMinuta = new Map(_ancLinhas.map(c => [c.minuta, c]));
+      let novas = 0, trocadas = 0;
+      linhas.forEach(c => { porMinuta.has(c.minuta) ? trocadas++ : novas++; porMinuta.set(c.minuta, c); });   // mesma minuta: vale a do arquivo mais novo
+      _ancLinhas = [...porMinuta.values()];
+      _ancHdr = hdr; _ancOrd = null;
+      const existente = _ancArquivos.find(x => x.nome === arq.name);
+      if (existente) { existente.n = linhas.length; } else _ancArquivos.push({ nome: arq.name, n: linhas.length });
+      if (trocadas) erros.push(`"${arq.name}": ${trocadas} CT-e já estavam importados e foram atualizados.`);
+    } catch (e) {
+      console.error(e);
+      erros.push(`"${arq.name}": ${e.message || 'não foi possível ler o arquivo.'}`);
+    }
   }
+  msg.style.color = erros.some(x => !/atualizados\.$/.test(x)) ? '#b91c1c' : '#64748b';
+  msg.textContent = erros.join(' ');
+  ancMostrarArquivos();
+  ancMontarFiltros(false);
+  ancAplicar();
 }
-function ancEscolheu(input) { const f = input.files && input.files[0]; if (f) ancImportar(f); input.value = ''; }
+function ancEscolheu(input) { const f = input.files && input.files.length ? [...input.files] : []; if (f.length) ancImportar(f); input.value = ''; }
+function ancMostrarArquivos() {
+  document.getElementById('anc-arq-nome').innerHTML = _ancArquivos.map((a, i) =>
+    `<span class="anc-chip">📄 ${cadEsc(a.nome)} (${a.n} CT-e) <b onclick="ancRemoverArquivo(${i})" title="Remover este arquivo" style="cursor:pointer;color:#b91c1c">✕</b></span>`).join('');
+}
+// remove um arquivo: as linhas dele saem; os demais arquivos são relidos da memória (guardamos a origem de cada linha)
+function ancRemoverArquivo(i) {
+  const nome = _ancArquivos[i] && _ancArquivos[i].nome;
+  _ancArquivos.splice(i, 1);
+  _ancLinhas = _ancLinhas.filter(c => c.arquivo !== nome);
+  ancMostrarArquivos(); ancMontarFiltros(false); ancAplicar();
+}
 function ancLimpar() {
-  _ancLinhas = []; _ancHdr = []; _ancArquivo = ''; _ancBase = []; _ancOrd = null;
-  document.getElementById('anc-arq-nome').textContent = '';
+  _ancLinhas = []; _ancHdr = []; _ancArquivos = []; _ancBase = []; _ancOrd = null;
   document.getElementById('anc-msg').textContent = '';
+  ancMostrarArquivos();
   ancMontarFiltros(true);
   ancAplicar();
 }
@@ -131,7 +154,7 @@ function carregarAnaliseCusto() {
     _ancDropOk = true;
     ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('sobre'); }));
     ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('sobre'); }));
-    drop.addEventListener('drop', e => { const f = e.dataTransfer.files && e.dataTransfer.files[0]; if (f) ancImportar(f); });
+    drop.addEventListener('drop', e => { const f = e.dataTransfer.files ? [...e.dataTransfer.files] : []; if (f.length) ancImportar(f); });
   }
   ancMontarFiltros(false);
   ancAplicar();
@@ -144,6 +167,9 @@ function ancMontarFiltros(zerar) {
       valores.map(v => `<option value="${cadEsc(v)}"${v === atual ? ' selected' : ''}>${cadEsc(v)}</option>`).join('');
   };
   const u = k => [...new Set(_ancLinhas.map(c => c[k]).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const meses = [...new Set(_ancLinhas.map(c => c.data.slice(0, 7)).filter(Boolean))].sort().reverse();
+  { const sel = document.getElementById('anc-f-mes'), atual = zerar ? '' : sel.value;
+    sel.innerHTML = '<option value="">Todos os meses</option>' + meses.map(m => `<option value="${m}"${m === atual ? ' selected' : ''}>${cadEsc(mfMesNome(m))}</option>`).join(''); }
   encher('anc-f-servico', u('servico'), 'Todos os serviços');
   encher('anc-f-base', u('base'), 'Todas as bases');
   encher('anc-f-cliente', u('cliente'), 'Todos os clientes');
@@ -151,9 +177,9 @@ function ancMontarFiltros(zerar) {
 
 function ancAplicar() {
   const v = id => document.getElementById(id).value;
-  const servico = v('anc-f-servico'), base = v('anc-f-base'), cliente = v('anc-f-cliente');
+  const mes = v('anc-f-mes'), servico = v('anc-f-servico'), base = v('anc-f-base'), cliente = v('anc-f-cliente');
   const tirar = document.getElementById('anc-f-excl').checked;
-  _ancBase = _ancLinhas.filter(c => (!servico || c.servico === servico) && (!base || c.base === base) &&
+  _ancBase = _ancLinhas.filter(c => (!mes || c.data.slice(0, 7) === mes) && (!servico || c.servico === servico) && (!base || c.base === base) &&
     (!cliente || c.cliente === cliente) && !(tirar && c.excl));
   ancRenderResumo();
   ancRenderEstat();

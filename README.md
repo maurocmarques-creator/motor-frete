@@ -36,7 +36,7 @@ Origem: extraído do Indicador Forte Transportes (`forte.portoexapps.com.br`), s
 | `editores` | `[]` | E-mails que podem incluir/editar/excluir e ver a Auditoria |
 | `identidade` | login do Cloudflare Access | `async () => 'email'` — de onde vem o e-mail de quem está usando |
 | `todosEditam` | `false` | `true` libera edição para todos (só para teste) |
-| `abas` | `['cadastro','simulador','auditoria']` | Quais abas mostrar. `'analise-custo'` (v1.1.0) é opcional e não entra por padrão |
+| `abas` | `['cadastro','simulador','auditoria']` | Quais abas mostrar. `'analise-custo'` (v1.1.0; vários arquivos e filtro de mês na v1.1.1) é opcional e não entra por padrão |
 | `abaInicial` | `simulador` | `cad-servico`, `cad-tabela`, `cad-grupo`, `cad-icms`, `cad-cidade`, `simulador`, `auditoria`, `analise-custo` |
 | `auditoria.linhas` | — | Array (ou função que devolve array) com as minutas — formato abaixo |
 | `auditoria.mapear` | — | `r => ({...})` para converter as linhas do projeto para o formato do motor |
@@ -70,7 +70,7 @@ Uma linha por minuta/CT-e. Obrigatórios para calcular: `SERVICO` (nome igual ao
 | `FRETE TOTAL` | `5894.15` | valor cobrado, comparado com o da tabela |
 | `TX. ENTREGA`, `TX. COLETA`, `TX. GRIS`, `TX. PEDAGIO`, `TX. DESPACHO`, `TX. OUTROS`, `TX. NOTA`, `TX. FRETE PESO`, `FRETE TAS`, `FRETE TRT`, `FRETE TDE`, `FRETE SET/CAT`, `VALOR ICMS` | números | detalhe do "Excel (portal)" |
 
-## Aba Análise de custo (v1.1.0)
+## Aba Análise de custo (v1.1.0; vários arquivos e filtro de mês na v1.1.1)
 
 Ative com `abas: ['cadastro','simulador','auditoria','analise-custo']`. Não usa o banco: a **tela 147 do Brudam**
 (relatório de custo por operação, `.xls`/HTML do próprio Brudam ou `.xlsx`) é importada na própria aba

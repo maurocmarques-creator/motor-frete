@@ -93,3 +93,4 @@
 .mf .cad-del{background:transparent;border:1px solid #fecaca;color:#b91c1c;border-radius:6px;padding:3px 10px;font-size:.75rem;cursor:pointer}
 .mf .anc-drop{display:flex;gap:10px;flex-wrap:wrap;align-items:center;border:2px dashed var(--primary-light);border-radius:10px;padding:12px 14px;background:#f8fbff;font-size:.82rem}
 .mf .anc-drop.sobre{background:#dbeafe;border-style:solid}
+.mf .anc-chip{display:inline-block;background:#e0efff;color:var(--primary);border-radius:12px;padding:3px 10px;margin:2px 4px 2px 0;font-size:.76rem;font-weight:600}

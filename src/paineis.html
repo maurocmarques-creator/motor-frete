@@ -177,14 +177,15 @@
     </div>
     <div style="font-size:.74rem;color:#64748b;margin-bottom:10px">Base: tela 147 do Brudam (relatório de custo por operação). <b>Média</b> = soma dos custos ÷ soma dos pesos; <b>mediana</b> = valor típico por CT-e. Por padrão ficam de fora CT-e complementar, repasse e serviço logístico.</div>
     <div id="anc-drop" class="anc-drop">
-      <span>📂 Arraste aqui o arquivo da <b>tela 147</b> (.xls / .xlsx) ou</span>
+      <span>📂 Arraste aqui os arquivos da <b>tela 147</b> (.xls / .xlsx — pode ser mais de um, por exemplo um por mês) ou</span>
       <label class="cad-btn" style="display:inline-block">Escolher arquivo
-        <input id="anc-arquivo" type="file" accept=".xls,.xlsx,.html,.htm" style="display:none" onchange="ancEscolheu(this)"></label>
-      <span id="anc-arq-nome" style="font-weight:600;color:var(--primary)"></span>
+        <input id="anc-arquivo" type="file" multiple accept=".xls,.xlsx,.html,.htm" style="display:none" onchange="ancEscolheu(this)"></label>
+      <span id="anc-arq-nome"></span>
       <button class="cad-btn" type="button" style="background:var(--gray);padding:6px 12px" onclick="ancLimpar()">Limpar</button>
     </div>
     <div id="anc-msg" style="font-size:.78rem;color:#64748b;margin:6px 0"></div>
     <div class="aud-filtros">
+      <select id="anc-f-mes" onchange="ancAplicar()"></select>
       <select id="anc-f-servico" onchange="ancAplicar()"></select>
       <select id="anc-f-base" onchange="ancAplicar()"></select>
       <select id="anc-f-cliente" onchange="ancAplicar()" style="min-width:220px"></select>
