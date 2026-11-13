@@ -49,7 +49,7 @@ def main():
     partes.append(EXPOR)
     partes.append("})();")
 
-    js = "\n".join(partes).replace("__MF_VERSAO__", versao)
+    js = "\n".join(partes).replace("__MF_VERSAO__", versao).replace("__MF_BUILD__", datetime.now().strftime("%d/%m/%Y %H:%M"))
     (RAIZ / "dist").mkdir(exist_ok=True)
     (RAIZ / "dist" / "motor-frete.js").write_text(js, encoding="utf-8")
     print(f"dist/motor-frete.js v{versao} ({len(js):,} bytes)")

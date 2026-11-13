@@ -1,7 +1,7 @@
 // nucleo.js — Motor de Frete: configuracao, banco (Supabase), permissao e utilidades.
 // Primeiro arquivo do pacote; os demais usam estas funcoes/variaveis globais.
 
-const MF = { cfg: {}, versao: '__MF_VERSAO__', linhasCache: null };
+const MF = { cfg: {}, versao: '__MF_VERSAO__', build: '__MF_BUILD__', linhasCache: null };
 // Endereco deste script (dist/motor-frete.js): arquivos de apoio, como cidaten-trechos.json, ficam na mesma pasta.
 const MF_SCRIPT_URL = (document.currentScript && document.currentScript.src) || '';
 

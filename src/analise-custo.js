@@ -34,6 +34,8 @@ const ANC_CUSTOS = { coleta: 'Coleta', entrega: 'Entrega', transf: 'Transferênc
 const ANC_RESP = { coleta: 'RESP. COLETA', entrega: 'RESP. ENTREGA', transf: 'RESP. TRANSF' };
 
 // ---------- utilidades ----------
+// Soma de todos os custos do CT-e (operacionais + seguro, outros, difal, despacho + ICMS/ISS, imposto e comissão)
+function ancCustoTotal(c) { const k = c.custos; return k.coleta + k.entrega + k.transf + k.seguro + k.outros + k.difal + k.desp + c.icms + c.imposto + c.comis; }
 function ancNum(v) {
   if (typeof v === 'number') return v;
   const s = String(v ?? '').replace('%', '').trim();
@@ -339,24 +341,23 @@ function ancRenderResumo() {
   el.innerHTML = html.join('');
 }
 
-function ancRenderEstat() {
-  const tb = document.getElementById('anc-estat');
-  if (!_ancLinhas.length) { tb.innerHTML = ''; return; }
-  const ks = ['coleta', 'transf', 'entrega'], por = document.getElementById('anc-kg-quebra').value;
+// Monta a tabela de custo por kg (por faixa de peso ou por responsável) para uma lista de CT-e.
+function ancEstatHtml(base, por) {
+  const ks = ['coleta', 'transf', 'entrega'];
   const td = x => `<td style="text-align:right">${x}</td>`;
   // grupos: { nome, todas (CT-e do grupo), porCusto: { coleta: [...], transf: [...], entrega: [...] } }
   let grupos;
   if (por === 'faixa') {
-    grupos = ANC_FAIXAS.map((f, i) => { const l = _ancBase.filter(c => ancFaixaDe(c.peso) === i); return { nome: f[2], todas: l, porCusto: { coleta: l, transf: l, entrega: l } }; });
+    grupos = ANC_FAIXAS.map((f, i) => { const l = base.filter(c => ancFaixaDe(c.peso) === i); return { nome: f[2], todas: l, porCusto: { coleta: l, transf: l, entrega: l } }; });
   } else {   // por responsável: cada custo considera os CT-e em que o nome é o responsável daquele custo
     const nomes = new Set();
-    _ancBase.forEach(c => ks.forEach(k => { if (c.resp[k]) nomes.add(c.resp[k]); }));
-    grupos = [...nomes].map(n => ({ nome: n, todas: _ancBase.filter(c => ks.some(k => c.resp[k] === n)),
-      porCusto: Object.fromEntries(ks.map(k => [k, _ancBase.filter(c => c.resp[k] === n)])) }));
+    base.forEach(c => ks.forEach(k => { if (c.resp[k]) nomes.add(c.resp[k]); }));
+    grupos = [...nomes].map(n => ({ nome: n, todas: base.filter(c => ks.some(k => c.resp[k] === n)),
+      porCusto: Object.fromEntries(ks.map(k => [k, base.filter(c => c.resp[k] === n)])) }));
     const custoResp = g => ks.reduce((s, k) => s + ancSoma(g.porCusto[k], c => c.custos[k]), 0);   // só os custos de que o nome é responsável
     grupos.sort((x, y) => custoResp(y) - custoResp(x));
   }
-  grupos.push({ nome: 'Total', todas: _ancBase, porCusto: { coleta: _ancBase, transf: _ancBase, entrega: _ancBase } });
+  grupos.push({ nome: 'Total', todas: base, porCusto: { coleta: base, transf: base, entrega: base } });
   // compacto: totais em R$ e kg sem centavos (o valor exato aparece ao passar o mouse); R$/kg com 2 casas
   const inteiro = v => ancFmt(Math.round(v), 0), R = 'text-align:right';
   const verm = v => v < 0 ? 'color:#dc2626;' : '';
@@ -364,10 +365,11 @@ function ancRenderEstat() {
   let h = `<thead><tr><th rowspan="2" style="vertical-align:bottom">${por === 'faixa' ? 'Faixa de peso' : 'Responsável'}</th><th rowspan="2" style="${R};vertical-align:bottom">CT-e</th><th rowspan="2" style="${R};vertical-align:bottom">Peso (kg)</th>` +
     `<th colspan="3" style="text-align:center;border-left:1px solid #fff">Resultado</th>` +
     ks.map(k => `<th colspan="3" style="text-align:center;border-left:1px solid #fff">Custo ${ANC_CUSTOS[k].toLowerCase()}</th>`).join('') +
-    `<th colspan="2" style="text-align:center;border-left:1px solid #fff">Por kg (all in)</th>` +
-    `</tr><tr><th style="${R}">Faturamento</th><th style="${R}">Líquido</th><th style="${R}">Margem</th>${ks.map(sub).join('')}<th style="${R}">Faturamento/kg</th><th style="${R}">Custo operac./kg</th></tr></thead><tbody>`;
+    `<th colspan="3" style="text-align:center;border-left:1px solid #fff">Por kg (all in)</th>` +
+    `</tr><tr><th style="${R}">Faturamento</th><th style="${R}">Líquido</th><th style="${R}">Margem</th>${ks.map(sub).join('')}<th style="${R}">Faturamento/kg</th><th style="${R}">Custo operac./kg</th><th style="${R}">Custo total/kg</th></tr></thead><tbody>`;
   grupos.forEach(g => {
     const total = g.nome === 'Total', F = ancSoma(g.todas, c => c.frete), L = ancSoma(g.todas, c => c.lucro), pesoT = ancSoma(g.todas, c => c.peso);
+    const CT = ancSoma(g.todas, c => ancCustoTotal(c));
     const CO = ancSoma(g.todas, c => c.custos.coleta + c.custos.transf + c.custos.entrega);
     const td = (x, st) => `<td style="${R};${st || ''}">${x}</td>`;
     h += `<tr${total ? ' style="font-weight:700;background:#eef2f7"' : ''}><td>${cadEsc(g.nome)}</td>${td(g.todas.length)}${td(inteiro(pesoT))}` +
@@ -375,9 +377,23 @@ function ancRenderEstat() {
       ks.map(k => { const e = ancEstat(g.porCusto[k], c => c.custos[k]), fraco = e.n > 0 && e.n < 5;
         const dica = `${ancFmt(e.custoT)} — ${e.n} CT-e com custo${fraco ? ' (poucos CT-e: baixa confiança)' : ''}`;
         return `<td style="${R};border-left:1px solid #e2e8f0;${fraco ? 'opacity:.65' : ''}" title="${dica}">${e.n ? inteiro(e.custoT) + (fraco ? ' ⚠' : '') : '—'}</td>${td(e.n ? '<b>' + ancFmt(e.pond) + '</b>' : '—')}${td(e.n ? ancFmt(e.med) : '—')}`; }).join('') +
-      `<td style="${R};border-left:1px solid #e2e8f0" title="Faturamento ÷ peso"><b>${pesoT ? ancFmt(F / pesoT) : '—'}</b></td><td style="${R}" title="(coleta + transferência + entrega) ÷ peso"><b>${pesoT ? ancFmt(CO / pesoT) : '—'}</b></td></tr>`;
+      `<td style="${R};border-left:1px solid #e2e8f0" title="Faturamento ÷ peso"><b>${pesoT ? ancFmt(F / pesoT) : '—'}</b></td><td style="${R}" title="(coleta + transferência + entrega) ÷ peso"><b>${pesoT ? ancFmt(CO / pesoT) : '—'}</b></td><td style="${R}" title="Todos os custos (operacionais, seguro, outros, difal, despacho, ICMS/ISS, imposto e comissão) ÷ peso. Total: ${ancFmt(CT)}"><b>${pesoT ? ancFmt(CT / pesoT) : '—'}</b></td></tr>`;
   });
-  tb.innerHTML = h + '</tbody>';
+  return h + '</tbody>';
+}
+
+function ancRenderEstat() {
+  const tb = document.getElementById('anc-estat'), box = document.getElementById('anc-estat-trechos');
+  if (!_ancLinhas.length) { tb.innerHTML = ''; box.innerHTML = ''; return; }
+  const por = document.getElementById('anc-kg-quebra').value;
+  tb.innerHTML = ancEstatHtml(_ancBase, por);
+  // Mais de um trecho escolhido: o mesmo quadro de cada trecho, um abaixo do outro (um CT-e entra em todos os trechos escolhidos a que pertence)
+  const trechos = [..._ancSel.trecho].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  box.innerHTML = trechos.length < 2 ? '' : '<h3 style="margin:18px 0 6px">Por trecho</h3>' + trechos.map(z => {
+    const l = _ancBase.filter(c => ancValores(c, 'trecho').includes(z));
+    return `<div style="margin-bottom:14px"><div style="font-weight:700;color:var(--primary);margin:0 0 4px">${cadEsc(z)} <small style="font-weight:400;color:#64748b">— ${l.length} CT-e</small></div>` +
+      (l.length ? `<div style="overflow-x:auto"><table class="anc-compacta">${ancEstatHtml(l, por)}</table></div>` : '<div style="font-size:.78rem;color:#94a3b8">Nenhum CT-e neste trecho com os filtros atuais.</div>') + '</div>';
+  }).join('');
 }
 
 // custo/kg de uma linha (0 quando não há custo ou peso)

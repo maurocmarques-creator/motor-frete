@@ -39,7 +39,7 @@ function mfMontarHtml(abas) {
     ${abas.includes('simulador') ? `<div class="mf-tab" data-mf="simulador" onclick="mfMostrar('simulador')">🧮 Simulador</div>` : ''}
     ${abas.includes('auditoria') ? `<div class="mf-tab" data-mf="auditoria" id="tab-btn-auditoria" style="display:none" onclick="mfMostrar('auditoria')">🔍 Auditoria</div>` : ''}
     ${abas.includes('analise-custo') ? `<div class="mf-tab" data-mf="analise-custo" onclick="mfMostrar('analise-custo')">📊 Análise de custo</div>` : ''}
-    <span class="mf-versao">Motor de Frete v${MF.versao}</span>
+    <span class="mf-versao" id="mf-versao" title="Verificando se há versão mais nova...">Motor de Frete v${MF.versao} · atualizado em ${MF.build}</span>
   </nav>`;
   // So entram as telas das abas pedidas
   const tmp = document.createElement('div');
@@ -107,6 +107,7 @@ async function mfIniciar(cfg) {
     });
   }
 
+  mfVerificarVersao();   // sem await: não atrasa a tela
   const pode = await cadPodeEditar();
   const btnAud = document.getElementById('tab-btn-auditoria');
   if (btnAud) btnAud.style.display = (pode || (cfg.auditoria && cfg.auditoria.publica)) ? '' : 'none';
@@ -115,8 +116,42 @@ async function mfIniciar(cfg) {
   return window.MotorFrete;
 }
 
+// Compara esta versão com a última publicada (arquivo VERSION do repositório, sem cache) e avisa no canto do menu.
+// "Atualizar" baixa de novo o script ignorando o cache do navegador e recarrega a página (não precisa apertar Ctrl+F5 várias vezes).
+const MF_SITE = 'https://maurocmarques-creator.github.io/motor-frete/';
+function mfVerMaior(a, b) {   // a > b ?
+  const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number);
+  for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); }
+  return false;
+}
+async function mfAtualizar() {
+  const el = document.getElementById('mf-versao');
+  if (el) el.textContent = 'Atualizando...';
+  try { await fetch(MF_SCRIPT_URL || (MF_SITE + 'dist/motor-frete.js'), { cache: 'reload' }); } catch (e) { /* recarrega assim mesmo */ }
+  location.reload();
+}
+async function mfVerificarVersao() {
+  const el = document.getElementById('mf-versao');
+  if (!el) return;
+  try {
+    const r = await fetch(MF_SITE + 'VERSION?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error('sem VERSION');
+    const nova = (await r.text()).trim();
+    if (!/^\d+\.\d+\.\d+$/.test(nova)) throw new Error('VERSION inválida');
+    if (mfVerMaior(nova, MF.versao)) {
+      el.innerHTML = `Motor de Frete v${MF.versao} (${MF.build}) · <b style="color:#fbbf24;cursor:pointer;text-decoration:underline" onclick="MotorFrete.atualizar()">⚠ v${nova} disponível — clique para atualizar</b>`;
+      el.title = 'Há uma versão mais nova publicada. Clique para baixar e recarregar.';
+    } else {
+      el.innerHTML = `Motor de Frete v${MF.versao} · atualizado em ${MF.build} <span style="color:#86efac">✓ versão mais recente</span>`;
+      el.title = 'Você está usando a versão mais recente publicada.';
+    }
+  } catch (e) { el.title = 'Não foi possível verificar se há versão mais nova.'; }
+}
+
 window.MotorFrete = {
+  atualizar: mfAtualizar,
   versao: MF.versao,
+  build: MF.build,
   iniciar: mfIniciar,
   abrir: mfMostrar,
   // Motor de calculo, para usar direto em outras telas/relatorios:
