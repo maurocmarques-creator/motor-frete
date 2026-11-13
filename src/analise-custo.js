@@ -279,7 +279,8 @@ function ancMultiAbrir(tipo, ev) {
 }
 function ancMultiRender(tipo) {
   const cont = {};
-  _ancLinhas.forEach(c => ancValores(c, tipo).forEach(v => { cont[v] = (cont[v] || 0) + 1; }));
+  _ancLinhas.forEach(c => ancValores(c, tipo).forEach(v => { cont[v] = cont[v] || 0; }));
+  _ancLinhas.filter(c => ancPassa(c, tipo)).forEach(c => ancValores(c, tipo).forEach(v => { cont[v]++; }));
   const busca = freteNorm(document.getElementById(`anc-b-${tipo}`).value), sel = _ancSel[tipo];
   const nomes = Object.keys(cont).sort((a, b) => a.localeCompare(b, 'pt-BR')).filter(n => !busca || freteNorm(n).includes(busca));
   document.getElementById(`anc-l-${tipo}`).innerHTML = nomes.length ? nomes.map(n =>
@@ -300,13 +301,16 @@ function ancMultiTodos(tipo, marcar) {
 }
 
 
+// O CT-e passa nos filtros? `exceto` = filtro de lista a ignorar (para contar as opções dele considerando os demais filtros).
+function ancPassa(c, exceto) {
+  const mes = document.getElementById('anc-f-mes').value, tirar = document.getElementById('anc-f-excl').checked;
+  if (mes && c.data.slice(0, 7) !== mes) return false;
+  if (tirar && c.excl) return false;
+  return ['servico', 'cliente', 'base', 'trecho'].every(k => k === exceto || !_ancSel[k].size || ancValores(c, k).some(x => _ancSel[k].has(x)));
+}
 function ancAplicar() {
-  const v = id => document.getElementById(id).value;
-  const mes = v('anc-f-mes');
-  const tirar = document.getElementById('anc-f-excl').checked;
-  _ancBase = _ancLinhas.filter(c => (!mes || c.data.slice(0, 7) === mes) && (!_ancSel.servico.size || _ancSel.servico.has(c.servico)) && (!_ancSel.base.size || _ancSel.base.has(c.base)) &&
-    (!_ancSel.cliente.size || _ancSel.cliente.has(c.cliente)) &&
-    (!_ancSel.trecho.size || ancValores(c, 'trecho').some(z => _ancSel.trecho.has(z))) && !(tirar && c.excl));
+  _ancBase = _ancLinhas.filter(c => ancPassa(c));
+  ['servico', 'cliente', 'base', 'trecho'].forEach(ancMultiRender);   // os números das listas acompanham os demais filtros
   ancRenderResumo();
   ancRenderEstat();
   ancRenderTabela();

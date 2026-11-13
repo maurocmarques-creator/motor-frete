@@ -1,4 +1,4 @@
-/*! Motor de Frete v1.2.1 — PortoEx — gerado em 13/11/2026 08:09 por build.py (nao editar: mude src/ e rode o build) */
+/*! Motor de Frete v1.2.2 — PortoEx — gerado em 13/11/2026 08:14 por build.py (nao editar: mude src/ e rode o build) */
 (function () {
 'use strict';
 
@@ -6,7 +6,7 @@
 // nucleo.js — Motor de Frete: configuracao, banco (Supabase), permissao e utilidades.
 // Primeiro arquivo do pacote; os demais usam estas funcoes/variaveis globais.
 
-const MF = { cfg: {}, versao: '1.2.1', linhasCache: null };
+const MF = { cfg: {}, versao: '1.2.2', linhasCache: null };
 // Endereco deste script (dist/motor-frete.js): arquivos de apoio, como cidaten-trechos.json, ficam na mesma pasta.
 const MF_SCRIPT_URL = (document.currentScript && document.currentScript.src) || '';
 
@@ -2921,7 +2921,8 @@ function ancMultiAbrir(tipo, ev) {
 }
 function ancMultiRender(tipo) {
   const cont = {};
-  _ancLinhas.forEach(c => ancValores(c, tipo).forEach(v => { cont[v] = (cont[v] || 0) + 1; }));
+  _ancLinhas.forEach(c => ancValores(c, tipo).forEach(v => { cont[v] = cont[v] || 0; }));
+  _ancLinhas.filter(c => ancPassa(c, tipo)).forEach(c => ancValores(c, tipo).forEach(v => { cont[v]++; }));
   const busca = freteNorm(document.getElementById(`anc-b-${tipo}`).value), sel = _ancSel[tipo];
   const nomes = Object.keys(cont).sort((a, b) => a.localeCompare(b, 'pt-BR')).filter(n => !busca || freteNorm(n).includes(busca));
   document.getElementById(`anc-l-${tipo}`).innerHTML = nomes.length ? nomes.map(n =>
@@ -2942,13 +2943,16 @@ function ancMultiTodos(tipo, marcar) {
 }
 
 
+// O CT-e passa nos filtros? `exceto` = filtro de lista a ignorar (para contar as opções dele considerando os demais filtros).
+function ancPassa(c, exceto) {
+  const mes = document.getElementById('anc-f-mes').value, tirar = document.getElementById('anc-f-excl').checked;
+  if (mes && c.data.slice(0, 7) !== mes) return false;
+  if (tirar && c.excl) return false;
+  return ['servico', 'cliente', 'base', 'trecho'].every(k => k === exceto || !_ancSel[k].size || ancValores(c, k).some(x => _ancSel[k].has(x)));
+}
 function ancAplicar() {
-  const v = id => document.getElementById(id).value;
-  const mes = v('anc-f-mes');
-  const tirar = document.getElementById('anc-f-excl').checked;
-  _ancBase = _ancLinhas.filter(c => (!mes || c.data.slice(0, 7) === mes) && (!_ancSel.servico.size || _ancSel.servico.has(c.servico)) && (!_ancSel.base.size || _ancSel.base.has(c.base)) &&
-    (!_ancSel.cliente.size || _ancSel.cliente.has(c.cliente)) &&
-    (!_ancSel.trecho.size || ancValores(c, 'trecho').some(z => _ancSel.trecho.has(z))) && !(tirar && c.excl));
+  _ancBase = _ancLinhas.filter(c => ancPassa(c));
+  ['servico', 'cliente', 'base', 'trecho'].forEach(ancMultiRender);   // os números das listas acompanham os demais filtros
   ancRenderResumo();
   ancRenderEstat();
   ancRenderTabela();
