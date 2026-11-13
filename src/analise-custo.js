@@ -377,7 +377,7 @@ function ancEstatHtml(base, por) {
       ks.map(k => { const e = ancEstat(g.porCusto[k], c => c.custos[k]), fraco = e.n > 0 && e.n < 5;
         const dica = `${ancFmt(e.custoT)} — ${e.n} CT-e com custo${fraco ? ' (poucos CT-e: baixa confiança)' : ''}`;
         return `<td style="${R};border-left:1px solid #e2e8f0;${fraco ? 'opacity:.65' : ''}" title="${dica}">${e.n ? inteiro(e.custoT) + (fraco ? ' ⚠' : '') : '—'}</td>${td(e.n ? '<b>' + ancFmt(e.pond) + '</b>' : '—')}${td(e.n ? ancFmt(e.med) : '—')}`; }).join('') +
-      `<td style="${R};border-left:1px solid #e2e8f0" title="Faturamento ÷ peso"><b>${pesoT ? ancFmt(F / pesoT) : '—'}</b></td><td style="${R}" title="(coleta + transferência + entrega) ÷ peso"><b>${pesoT ? ancFmt(CO / pesoT) : '—'}</b></td><td style="${R}" title="Todos os custos (operacionais, seguro, outros, difal, despacho, ICMS/ISS, imposto e comissão) ÷ peso. Total: ${ancFmt(CT)}"><b>${pesoT ? ancFmt(CT / pesoT) : '—'}</b></td></tr>`;
+      `<td style="${R};border-left:1px solid #e2e8f0" title="Faturamento ÷ peso"><b>${pesoT ? ancFmt(F / pesoT) : '—'}</b></td><td style="${R}" title="(coleta + transferência + entrega) ÷ peso"><b>${pesoT ? ancFmt(CO / pesoT) : '—'}</b></td><td style="${R}${pesoT && CT > F ? ';background:#fde2e2;color:#b42318' : ''}" title="${pesoT && CT > F ? 'Custo total maior que o faturamento (prejuízo). ' : ''}Todos os custos (operacionais, seguro, outros, difal, despacho, ICMS/ISS, imposto e comissão) ÷ peso. Total: ${ancFmt(CT)}"><b>${pesoT ? ancFmt(CT / pesoT) : '—'}</b></td></tr>`;
   });
   return h + '</tbody>';
 }

@@ -1,4 +1,4 @@
-/*! Motor de Frete v1.2.6 — PortoEx — gerado em 13/11/2026 08:23 por build.py (nao editar: mude src/ e rode o build) */
+/*! Motor de Frete v1.2.7 — PortoEx — gerado em 13/11/2026 08:25 por build.py (nao editar: mude src/ e rode o build) */
 (function () {
 'use strict';
 
@@ -6,7 +6,7 @@
 // nucleo.js — Motor de Frete: configuracao, banco (Supabase), permissao e utilidades.
 // Primeiro arquivo do pacote; os demais usam estas funcoes/variaveis globais.
 
-const MF = { cfg: {}, versao: '1.2.6', build: '13/11/2026 08:23', linhasCache: null };
+const MF = { cfg: {}, versao: '1.2.7', build: '13/11/2026 08:25', linhasCache: null };
 // Endereco deste script (dist/motor-frete.js): arquivos de apoio, como cidaten-trechos.json, ficam na mesma pasta.
 const MF_SCRIPT_URL = (document.currentScript && document.currentScript.src) || '';
 
@@ -3019,7 +3019,7 @@ function ancEstatHtml(base, por) {
       ks.map(k => { const e = ancEstat(g.porCusto[k], c => c.custos[k]), fraco = e.n > 0 && e.n < 5;
         const dica = `${ancFmt(e.custoT)} — ${e.n} CT-e com custo${fraco ? ' (poucos CT-e: baixa confiança)' : ''}`;
         return `<td style="${R};border-left:1px solid #e2e8f0;${fraco ? 'opacity:.65' : ''}" title="${dica}">${e.n ? inteiro(e.custoT) + (fraco ? ' ⚠' : '') : '—'}</td>${td(e.n ? '<b>' + ancFmt(e.pond) + '</b>' : '—')}${td(e.n ? ancFmt(e.med) : '—')}`; }).join('') +
-      `<td style="${R};border-left:1px solid #e2e8f0" title="Faturamento ÷ peso"><b>${pesoT ? ancFmt(F / pesoT) : '—'}</b></td><td style="${R}" title="(coleta + transferência + entrega) ÷ peso"><b>${pesoT ? ancFmt(CO / pesoT) : '—'}</b></td><td style="${R}" title="Todos os custos (operacionais, seguro, outros, difal, despacho, ICMS/ISS, imposto e comissão) ÷ peso. Total: ${ancFmt(CT)}"><b>${pesoT ? ancFmt(CT / pesoT) : '—'}</b></td></tr>`;
+      `<td style="${R};border-left:1px solid #e2e8f0" title="Faturamento ÷ peso"><b>${pesoT ? ancFmt(F / pesoT) : '—'}</b></td><td style="${R}" title="(coleta + transferência + entrega) ÷ peso"><b>${pesoT ? ancFmt(CO / pesoT) : '—'}</b></td><td style="${R}${pesoT && CT > F ? ';background:#fde2e2;color:#b42318' : ''}" title="${pesoT && CT > F ? 'Custo total maior que o faturamento (prejuízo). ' : ''}Todos os custos (operacionais, seguro, outros, difal, despacho, ICMS/ISS, imposto e comissão) ÷ peso. Total: ${ancFmt(CT)}"><b>${pesoT ? ancFmt(CT / pesoT) : '—'}</b></td></tr>`;
   });
   return h + '</tbody>';
 }
