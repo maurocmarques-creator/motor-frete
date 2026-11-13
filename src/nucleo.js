@@ -2,6 +2,8 @@
 // Primeiro arquivo do pacote; os demais usam estas funcoes/variaveis globais.
 
 const MF = { cfg: {}, versao: '__MF_VERSAO__', linhasCache: null };
+// Endereco deste script (dist/motor-frete.js): arquivos de apoio, como cidaten-trechos.json, ficam na mesma pasta.
+const MF_SCRIPT_URL = (document.currentScript && document.currentScript.src) || '';
 
 // Banco: Supabase da PortoEx (tabela app_config, um documento JSON por chave).
 // MotorFrete.iniciar({supabase: {url, chave}}) troca, se precisar.

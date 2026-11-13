@@ -94,3 +94,15 @@
 .mf .anc-drop{display:flex;gap:10px;flex-wrap:wrap;align-items:center;border:2px dashed var(--primary-light);border-radius:10px;padding:12px 14px;background:#f8fbff;font-size:.82rem}
 .mf .anc-drop.sobre{background:#dbeafe;border-style:solid}
 .mf .anc-chip{display:inline-block;background:#e0efff;color:var(--primary);border-radius:12px;padding:3px 10px;margin:2px 4px 2px 0;font-size:.76rem;font-weight:600}
+.mf .anc-multi{position:relative;display:inline-block}
+.mf .anc-multi-btn{border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:.8rem;background:#fff;cursor:pointer;min-width:170px;text-align:left;max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mf .anc-multi-painel{position:absolute;z-index:70;top:100%;left:0;margin-top:2px;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);padding:8px;min-width:300px;max-width:420px}
+.mf .anc-multi-painel>input{width:100%;border:1px solid var(--border);border-radius:5px;padding:5px 8px;font-size:.8rem;margin-bottom:6px}
+.mf .anc-multi-acoes{font-size:.74rem;margin-bottom:4px}
+.mf .anc-multi-acoes a{color:var(--primary-light);cursor:pointer;text-decoration:underline}
+.mf .anc-multi-lista{max-height:260px;overflow:auto}
+.mf .anc-multi-item{display:flex;align-items:center;gap:6px;padding:3px 4px;font-size:.8rem;cursor:pointer;border-radius:4px}
+.mf .anc-multi-item:hover{background:var(--light)}
+.mf table.anc-compacta{width:100%;font-size:.72rem}
+.mf table.anc-compacta th{padding:5px 6px;font-size:.68rem;white-space:nowrap}
+.mf table.anc-compacta td{padding:4px 6px;white-space:nowrap}

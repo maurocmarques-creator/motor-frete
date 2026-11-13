@@ -36,7 +36,7 @@ Origem: extraído do Indicador Forte Transportes (`forte.portoexapps.com.br`), s
 | `editores` | `[]` | E-mails que podem incluir/editar/excluir e ver a Auditoria |
 | `identidade` | login do Cloudflare Access | `async () => 'email'` — de onde vem o e-mail de quem está usando |
 | `todosEditam` | `false` | `true` libera edição para todos (só para teste) |
-| `abas` | `['cadastro','simulador','auditoria']` | Quais abas mostrar. `'analise-custo'` (v1.1.0; vários arquivos e filtro de mês na v1.1.1) é opcional e não entra por padrão |
+| `abas` | `['cadastro','simulador','auditoria']` | Quais abas mostrar. `'analise-custo'` (v1.1.0; v1.2.0: filtros múltiplos, trecho Cidaten, estatísticas por faixa) é opcional e não entra por padrão |
 | `abaInicial` | `simulador` | `cad-servico`, `cad-tabela`, `cad-grupo`, `cad-icms`, `cad-cidade`, `simulador`, `auditoria`, `analise-custo` |
 | `auditoria.linhas` | — | Array (ou função que devolve array) com as minutas — formato abaixo |
 | `auditoria.mapear` | — | `r => ({...})` para converter as linhas do projeto para o formato do motor |
@@ -70,7 +70,7 @@ Uma linha por minuta/CT-e. Obrigatórios para calcular: `SERVICO` (nome igual ao
 | `FRETE TOTAL` | `5894.15` | valor cobrado, comparado com o da tabela |
 | `TX. ENTREGA`, `TX. COLETA`, `TX. GRIS`, `TX. PEDAGIO`, `TX. DESPACHO`, `TX. OUTROS`, `TX. NOTA`, `TX. FRETE PESO`, `FRETE TAS`, `FRETE TRT`, `FRETE TDE`, `FRETE SET/CAT`, `VALOR ICMS` | números | detalhe do "Excel (portal)" |
 
-## Aba Análise de custo (v1.1.0; vários arquivos e filtro de mês na v1.1.1)
+## Aba Análise de custo (v1.1.0; v1.2.0: filtros múltiplos, trecho Cidaten, estatísticas por faixa)
 
 Ative com `abas: ['cadastro','simulador','auditoria','analise-custo']`. Não usa o banco: a **tela 147 do Brudam**
 (relatório de custo por operação, `.xls`/HTML do próprio Brudam ou `.xlsx`) é importada na própria aba
@@ -79,6 +79,7 @@ Ative com `abas: ['cadastro','simulador','auditoria','analise-custo']`. Não usa
 - **Filtros:** serviço (`SERVICO`), base (`BASE`) e cliente (`CLIENTE TOMADOR`). Por padrão ficam fora CT-e complementar, serviço de repasse e serviço logístico (caixa desmarcável).
 - **Quadros:** frete, custo de coleta, transferência e entrega (cada um com **média** = soma dos custos ÷ soma dos pesos e **mediana** por CT-e), soma ICMS + seguro + outros + impostos + comissão, lucro e margem.
 - **Análise estatística:** média, mediana, P25, P75 e máximo do custo/kg, por faixa de peso ou por responsável (transportadora); linhas com menos de 5 CT-e ficam com aviso.
+- **Trecho (padrão Cidaten):** a cidade de destino é cruzada com o trecho = UF + tarifa da planilha Cidaten (ex.: `SP CAPITAL`, `SP INTERIOR 3`), lido de `dist/cidaten-trechos.json` (gere com `python gerar-cidaten.py "caminho\Cidaten_....xlsx"` quando a planilha mudar). Há filtro de trecho com várias escolhas; "Importar trechos/zonas" troca o padrão por um arquivo (`Nome Zona` + `Cidade - UF`) e "Voltar ao padrão" desfaz.
 - **Lista:** custo/kg de cada CT-e; clicar no cabeçalho ordena do maior para o menor (e inverte); custo/kg acima do P75 da própria faixa de peso aparece em vermelho. Exporta para Excel.
 - Colunas lidas da tela 147: `MINUTA, BASE, DATA, CLIENTE TOMADOR, SERVICO, TIPO CTE, DESTINO, VALOR NF, FRETE, PESO, RESP. COLETA/ENTREGA/TRANSF, CUSTO COLETA/ENTREGA/TRANSF, ICMS/ISS, DIFAL, C.DESPACHO, SEGURO, OUTROS, IMPOSTO, COMIS, LUCRO LIQ`.
 

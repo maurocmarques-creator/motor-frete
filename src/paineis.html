@@ -184,11 +184,46 @@
       <button class="cad-btn" type="button" style="background:var(--gray);padding:6px 12px" onclick="ancLimpar()">Limpar</button>
     </div>
     <div id="anc-msg" style="font-size:.78rem;color:#64748b;margin:6px 0"></div>
+    <div style="font-size:.76rem;color:#475569;margin:0 0 8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label class="cad-btn" style="display:inline-block;background:var(--primary-light);padding:4px 10px;font-size:.74rem">Importar trechos/zonas (opcional)
+        <input id="anc-zonas-arq" type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="ancEscolheuZonas(this)"></label>
+      <button class="cad-btn" type="button" style="background:var(--gray);padding:4px 10px;font-size:.74rem" onclick="ancZonasPadrao()">Voltar ao padrão (Cidaten)</button>
+      <span id="anc-zonas-info" style="color:#64748b"></span>
+    </div>
     <div class="aud-filtros">
       <select id="anc-f-mes" onchange="ancAplicar()"></select>
-      <select id="anc-f-servico" onchange="ancAplicar()"></select>
-      <select id="anc-f-base" onchange="ancAplicar()"></select>
-      <select id="anc-f-cliente" onchange="ancAplicar()" style="min-width:220px"></select>
+      <div class="anc-multi">
+        <button type="button" id="anc-btn-servico" class="anc-multi-btn" onclick="ancMultiAbrir('servico',event)">Todos os serviços ▾</button>
+        <div id="anc-p-servico" class="anc-multi-painel" style="display:none">
+          <input id="anc-b-servico" type="text" placeholder="🔍 Buscar..." oninput="ancMultiRender('servico')">
+          <div class="anc-multi-acoes"><a onclick="ancMultiTodos('servico',true)">Marcar todos</a> · <a onclick="ancMultiTodos('servico',false)">Limpar seleção</a></div>
+          <div id="anc-l-servico" class="anc-multi-lista"></div>
+        </div>
+      </div>
+      <div class="anc-multi">
+        <button type="button" id="anc-btn-base" class="anc-multi-btn" onclick="ancMultiAbrir('base',event)">Todas as bases ▾</button>
+        <div id="anc-p-base" class="anc-multi-painel" style="display:none">
+          <input id="anc-b-base" type="text" placeholder="🔍 Buscar..." oninput="ancMultiRender('base')">
+          <div class="anc-multi-acoes"><a onclick="ancMultiTodos('base',true)">Marcar todos</a> · <a onclick="ancMultiTodos('base',false)">Limpar seleção</a></div>
+          <div id="anc-l-base" class="anc-multi-lista"></div>
+        </div>
+      </div>
+      <div class="anc-multi">
+        <button type="button" id="anc-btn-cliente" class="anc-multi-btn" onclick="ancMultiAbrir('cliente',event)">Todos os clientes ▾</button>
+        <div id="anc-p-cliente" class="anc-multi-painel" style="display:none">
+          <input id="anc-b-cliente" type="text" placeholder="🔍 Buscar..." oninput="ancMultiRender('cliente')">
+          <div class="anc-multi-acoes"><a onclick="ancMultiTodos('cliente',true)">Marcar todos</a> · <a onclick="ancMultiTodos('cliente',false)">Limpar seleção</a></div>
+          <div id="anc-l-cliente" class="anc-multi-lista"></div>
+        </div>
+      </div>
+      <div class="anc-multi">
+        <button type="button" id="anc-btn-trecho" class="anc-multi-btn" onclick="ancMultiAbrir('trecho',event)">Todos os trechos ▾</button>
+        <div id="anc-p-trecho" class="anc-multi-painel" style="display:none">
+          <input id="anc-b-trecho" type="text" placeholder="🔍 Buscar..." oninput="ancMultiRender('trecho')">
+          <div class="anc-multi-acoes"><a onclick="ancMultiTodos('trecho',true)">Marcar todos</a> · <a onclick="ancMultiTodos('trecho',false)">Limpar seleção</a></div>
+          <div id="anc-l-trecho" class="anc-multi-lista"></div>
+        </div>
+      </div>
       <label style="font-size:.76rem;color:#475569;display:flex;align-items:center;gap:5px"><input id="anc-f-excl" type="checkbox" checked onchange="ancAplicar()"> Tirar complemento, repasse e serviço logístico</label>
     </div>
     <div id="anc-resumo" class="aud-resumo"></div>
@@ -196,11 +231,10 @@
   <div class="table-card" style="margin-bottom:12px">
     <h3 style="margin-bottom:8px">Custo por kg — análise estatística</h3>
     <div class="aud-filtros" style="margin-bottom:8px">
-      <select id="anc-kg-custo" onchange="ancRenderEstat()"><option value="transf">Transferência</option><option value="coleta">Coleta</option><option value="entrega">Entrega</option></select>
       <select id="anc-kg-quebra" onchange="ancRenderEstat()"><option value="faixa">Quebrar por faixa de peso</option><option value="resp">Quebrar por responsável (transportadora)</option></select>
     </div>
-    <div style="overflow-x:auto"><table id="anc-estat"></table></div>
-    <div style="font-size:.72rem;color:#64748b;margin-top:6px">Mediana, P25 e P75 consideram só os CT-e com o custo selecionado (&gt; 0). Linhas com menos de 5 CT-e têm baixa confiança (⚠).</div>
+    <div style="overflow-x:auto"><table id="anc-estat" class="anc-compacta"></table></div>
+    <div style="font-size:.72rem;color:#64748b;margin-top:6px"><b>Faturamento</b> = frete; <b>Líquido</b> = lucro líquido (depois de custos, impostos e comissão); <b>Margem</b> = líquido ÷ faturamento. <b>Faturamento/kg (all in)</b> = faturamento ÷ peso; <b>Custo operac./kg</b> = (custo coleta + transferência + entrega) ÷ peso. <b>Média</b> = soma dos custos ÷ soma dos pesos dos CT-e que têm aquele custo (&gt; 0); <b>mediana</b> = valor típico por CT-e. Passe o mouse sobre um valor em R$ para ver o exato e quantos CT-e entraram; com menos de 5, baixa confiança (⚠). Por responsável, os custos consideram os CT-e em que o nome é o responsável daquele custo, e faturamento/líquido, os CT-e em que ele aparece em qualquer etapa.</div>
   </div>
   <div class="table-card" style="overflow-x:auto">
     <table>
