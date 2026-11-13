@@ -75,7 +75,7 @@ Object.assign(window, {
   // auditoria
   audAplicarFiltros, audFiltrarStatus, audDetalhe, audAbrirSimulador, audExportar,
   // analise de custo (tela 147)
-  ancEscolheu, ancLimpar, ancRemoverArquivo, ancMultiAbrir, ancMultiRender, ancMultiToggle, ancMultiTodos, ancEscolheuZonas, ancZonasPadrao, ancAplicar, ancOrdenar, ancRenderEstat, ancExportar,
+  ancEscolheu, ancLimpar, ancRemoverArquivo, ancMultiAbrir, ancMultiRender, ancMultiToggle, ancMultiTodos, ancEscolheuZonas, ancEscolheuFMin, ancFMinLimpar, ancAba, ancZonasPadrao, ancAplicar, ancOrdenar, ancRenderEstat, ancExportar,
 });
 """
 

@@ -108,3 +108,7 @@
 .mf table.anc-compacta td{padding:3px 4px;white-space:nowrap}
 .mf table.anc-lista th{white-space:normal;vertical-align:bottom}
 .mf table.anc-lista td.t{max-width:9em;overflow:hidden;text-overflow:ellipsis}
+.mf .anc-abas{display:flex;gap:4px;margin:0 0 10px;border-bottom:2px solid var(--border)}
+.mf .anc-aba{border:0;background:transparent;padding:7px 14px;font-size:.82rem;font-weight:600;color:#64748b;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px}
+.mf .anc-aba:hover{color:var(--primary)}
+.mf .anc-aba.ativa{color:var(--primary);border-bottom-color:var(--accent)}

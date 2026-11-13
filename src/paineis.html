@@ -172,7 +172,7 @@
 <div id="tab-analise-custo" class="mf-painel">
   <div class="table-card" style="margin-bottom:12px">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
-      <h3 style="margin:0">Análise de custo — custo por kg de coleta, transferência e entrega</h3>
+      <h3 style="margin:0" id="anc-titulo">Análise de custo — custo por kg de coleta, transferência e entrega</h3>
       <button class="cad-btn" type="button" style="background:var(--green)" onclick="ancExportar()">📥 Exportar Excel</button>
     </div>
     <div style="font-size:.74rem;color:#64748b;margin-bottom:10px">Base: tela 147 do Brudam (relatório de custo por operação). <b>Média</b> = soma dos custos ÷ soma dos pesos; <b>mediana</b> = valor típico por CT-e. Por padrão ficam de fora CT-e complementar, repasse e serviço logístico.</div>
@@ -184,6 +184,13 @@
       <button class="cad-btn" type="button" style="background:var(--gray);padding:6px 12px" onclick="ancLimpar()">Limpar</button>
     </div>
     <div id="anc-msg" style="font-size:.78rem;color:#64748b;margin:6px 0"></div>
+    <div style="font-size:.76rem;color:#475569;margin:0 0 8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label class="cad-btn" style="display:inline-block;background:var(--primary-light);padding:4px 10px;font-size:.74rem">Importar relatório FRETE MINIMO (xlsx do Brudam)
+        <input id="anc-fm-arq" type="file" accept=".xlsx,.xls" style="display:none" onchange="ancEscolheuFMin(this)"></label>
+      <span id="anc-fm-msg"></span>
+      <span style="color:#64748b">As minutas com FRETE MINIMO saem da análise e vão para a aba "Frete mínimo".</span>
+    </div>
+    <div id="anc-abas" class="anc-abas"></div>
     <div style="font-size:.76rem;color:#475569;margin:0 0 8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <label class="cad-btn" style="display:inline-block;background:var(--primary-light);padding:4px 10px;font-size:.74rem">Importar trechos/zonas (opcional)
         <input id="anc-zonas-arq" type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="ancEscolheuZonas(this)"></label>

@@ -26,6 +26,11 @@ let _ancZonaMapa = new Map();      // 'CIDADE|UF' -> [zonas] (Trecho do Motor + 
 let _ancZonasExtras = [];          // zonas importadas por arquivo: [{ zona, cidade, uf }]
 let _ancOrd = null;        // { k: 'coleta'|'entrega'|'transf'|'frete', d: -1 | 1 }
 let _ancDropOk = false;
+// Frete mínimo: relatório FRETE MINIMO do Brudam (MINUTA, MEMO, ULTIMO MEMO) importado à mão. As minutas com a expressão
+// FRETE MINIMO no memo saem da análise principal e ficam na aba "Frete mínimo" (mesmos filtros, cartões e quadros).
+let _ancFMin = new Set();     // minutas com FRETE MINIMO
+let _ancFMinInfo = null;      // { nome, total, fm }
+let _ancAba = 'analise';      // 'analise' | 'fm'
 const ANC_LIM_TELA = 500;
 
 const ANC_FAIXAS = [[0, 50, 'até 50 kg'], [50, 100, '51 a 100 kg'], [100, 300, '101 a 300 kg'],
@@ -147,7 +152,8 @@ async function ancImportarZonas(arquivo) {
 function ancEscolheuZonas(input) { const f = input.files && input.files[0]; if (f) ancImportarZonas(f); input.value = ''; }
 
 // ---------- leitura da tela 147 ----------
-async function ancLerArquivo(arquivo) {   // devolve as linhas com .arquivo = nome do arquivo
+// Lê um .xls (HTML do Brudam) ou .xlsx e devolve uma matriz de linhas/colunas.
+async function ancLerAoa(arquivo) {
   const buf = await arquivo.arrayBuffer(), u8 = new Uint8Array(buf);
   const cab = new TextDecoder('utf-8').decode(u8.slice(0, 4096));
   let aoa;
@@ -159,6 +165,10 @@ async function ancLerArquivo(arquivo) {   // devolve as linhas com .arquivo = no
     const wb = window.XLSX.read(buf, { type: 'array' });
     aoa = window.XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: '' });
   }
+  return aoa;
+}
+async function ancLerArquivo(arquivo) {   // devolve as linhas com .arquivo = nome do arquivo
+  const aoa = await ancLerAoa(arquivo);
   const h = aoa.findIndex(r => r && freteNorm(r[0]) === 'MINUTA');
   if (h < 0) throw new Error('Cabeçalho "MINUTA" não encontrado: use o arquivo da tela 147 (relatório de custo por operação).');
   const hd = aoa[h].map(x => freteNorm(x));
@@ -231,7 +241,7 @@ function ancRemoverArquivo(i) {
   ancMostrarArquivos(); ancMontarFiltros(false); ancAplicar();
 }
 function ancLimpar() {
-  _ancLinhas = []; _ancHdr = []; _ancArquivos = []; _ancBase = []; _ancOrd = null;
+  _ancLinhas = []; _ancHdr = []; _ancArquivos = []; _ancBase = []; _ancOrd = null; _ancFMin = new Set(); _ancFMinInfo = null; _ancAba = 'analise'; ancMostrarFMin();
   document.getElementById('anc-msg').textContent = '';
   ancMostrarArquivos();
   ancMontarFiltros(true);
@@ -308,14 +318,57 @@ function ancPassa(c, exceto) {
   const mes = document.getElementById('anc-f-mes').value, tirar = document.getElementById('anc-f-excl').checked;
   if (mes && c.data.slice(0, 7) !== mes) return false;
   if (tirar && c.excl) return false;
+  if (_ancFMin.has(c.minuta) !== (_ancAba === 'fm')) return false;   // frete mínimo só aparece na própria aba
   return ['servico', 'cliente', 'base', 'trecho'].every(k => k === exceto || !_ancSel[k].size || ancValores(c, k).some(x => _ancSel[k].has(x)));
 }
 function ancAplicar() {
   _ancBase = _ancLinhas.filter(c => ancPassa(c));
   ['servico', 'cliente', 'base', 'trecho'].forEach(ancMultiRender);   // os números das listas acompanham os demais filtros
+  ancRenderAbas();
   ancRenderResumo();
   ancRenderEstat();
   ancRenderTabela();
+}
+
+// ---------- aba lateral: Frete mínimo ----------
+async function ancEscolheuFMin(input) {
+  const f = input.files && input.files[0]; input.value = '';
+  if (!f) return;
+  const msg = document.getElementById('anc-fm-msg');
+  try {
+    const aoa = await ancLerAoa(f);
+    const h = aoa.findIndex(r => r && freteNorm(r[0]) === 'MINUTA');
+    if (h < 0) throw new Error('Coluna MINUTA não encontrada: use o relatório FRETE MINIMO do Brudam (MINUTA, MEMO, ULTIMO MEMO).');
+    const hd = aoa[h].map(x => freteNorm(x)), im = hd.indexOf('MEMO'), iu = hd.indexOf('ULTIMO MEMO');
+    const fm = new Set(); let total = 0;
+    for (let i = h + 1; i < aoa.length; i++) {
+      const r = aoa[i]; if (!r || !String(r[0] ?? '').trim()) continue;
+      total++;
+      const memo = [im >= 0 ? r[im] : '', iu >= 0 ? r[iu] : ''].map(x => String(x || '')).join(' ');
+      if (/FRETE\s*MINIMO/i.test(freteNorm(memo))) fm.add(String(r[0]).trim());
+    }
+    _ancFMin = fm; _ancFMinInfo = { nome: f.name, total, fm: fm.size };
+    msg.style.color = '#64748b';
+    ancMostrarFMin();
+    ancMontarFiltros(false); ancAplicar();
+  } catch (e) { msg.style.color = '#b91c1c'; msg.textContent = 'Erro: ' + e.message; }
+}
+function ancMostrarFMin() {
+  const el = document.getElementById('anc-fm-msg'); if (!el) return;
+  el.innerHTML = _ancFMinInfo ? `<span class="anc-chip">📄 ${cadEsc(_ancFMinInfo.nome)} — ${_ancFMinInfo.total} minutas, ${_ancFMinInfo.fm} com FRETE MINIMO <b onclick="ancFMinLimpar()" title="Remover o relatório" style="cursor:pointer;color:#b91c1c">✕</b></span>` : '';
+}
+function ancFMinLimpar() {
+  _ancFMin = new Set(); _ancFMinInfo = null; _ancAba = 'analise';
+  ancMostrarFMin(); ancMontarFiltros(false); ancAplicar();
+}
+function ancAba(aba) { _ancAba = aba; ancMontarFiltros(false); ancAplicar(); }
+function ancRenderAbas() {
+  const el = document.getElementById('anc-abas'); if (!el) return;
+  const nFM = _ancLinhas.filter(c => _ancFMin.has(c.minuta)).length;
+  if (!_ancFMinInfo) _ancAba = 'analise';
+  const b = (id, rot) => `<button type="button" class="anc-aba${_ancAba === id ? ' ativa' : ''}" onclick="ancAba('${id}')">${rot}</button>`;
+  el.innerHTML = b('analise', '📊 Análise') + b('fm', `📦 Frete mínimo (${nFM})`);
+  document.getElementById('anc-titulo').textContent = _ancAba === 'fm' ? 'Frete mínimo — CT-e fora da análise principal' : 'Análise de custo — custo por kg de coleta, transferência e entrega';
 }
 
 function ancRenderResumo() {
@@ -336,7 +389,7 @@ function ancRenderResumo() {
       [`média: <b>R$ ${ancFmt(PESO ? ancSoma(rows, ancSomaCustos) / PESO : 0)}</b>`, `mediana: <b>R$ ${ancFmt(somaMed)}</b>`]),
     card('Lucro/Prejuízo', `<span style="color:${L < 0 ? '#dc2626' : '#16a34a'}">${ancFmt(L)}</span>`),
     card('Margem %', ancPct(F ? L / F : 0)),
-    card('CT-e na análise', String(rows.length), [`de ${_ancLinhas.length} importados`, `${ancFmt(PESO)} kg`]),
+    card(_ancAba === 'fm' ? 'CT-e em frete mínimo' : 'CT-e na análise', String(rows.length), [`de ${_ancLinhas.length} importados`, `${ancFmt(PESO)} kg`]),
   ];
   el.innerHTML = html.join('');
 }
@@ -432,7 +485,7 @@ function ancRenderTabela() {
       ['coleta', 'entrega', 'transf'].map(k => num(c.custos[k]) + kgCel(k)).join('') +
       `<td style="text-align:right;color:${c.lucro < 0 ? '#dc2626' : '#16a34a'}">${ancFmt(c.lucro)}</td><td style="text-align:right">${ancPct(c.frete ? c.lucro / c.frete : 0)}</td></tr>`;
   }).join('');
-  rod.textContent = `${_ancBase.length} CT-e na análise` + (_ancBase.length > ANC_LIM_TELA ? ` (mostrando os primeiros ${ANC_LIM_TELA}; a exportação leva todos)` : '') +
+  rod.textContent = `${_ancBase.length} CT-e ${_ancAba === 'fm' ? 'em frete mínimo' : 'na análise'}` + (_ancBase.length > ANC_LIM_TELA ? ` (mostrando os primeiros ${ANC_LIM_TELA}; a exportação leva todos)` : '') +
     '. Custo/kg em vermelho = acima do P75 da própria faixa de peso.';
 }
 
