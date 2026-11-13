@@ -17,7 +17,7 @@
 <body>
 <header>
   <h1>Motor de Frete</h1>
-  <p>Cadastro (Serviço, Tabela, Trecho, ICMS, Cidade) · Simulador · Auditoria — módulo reaproveitável da PortoEx</p>
+  <p>Cadastro (Serviço, Tabela, Trecho, ICMS, Cidade) · Simulador · Auditoria · Análise de custo — módulo reaproveitável da PortoEx</p>
 </header>
 <main>
   <div id="motor"></div>
@@ -28,6 +28,7 @@
   MotorFrete.iniciar({
     alvo: '#motor',
     projeto: 'demo',
+    abas: ['cadastro', 'simulador', 'auditoria', 'analise-custo'],
     identidade: async () => '',
     auditoria: {
       publica: true,
