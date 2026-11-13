@@ -79,8 +79,14 @@ let _ancCidaten = null;   // null = ainda não tentou; false = não carregou; ob
 async function ancCarregarCidaten() {
   if (_ancCidaten !== null) return _ancCidaten;
   const cfgA = (MF.cfg && MF.cfg.analiseCusto) || {};
-  const url = cfgA.trechosUrl || (MF_SCRIPT_URL ? MF_SCRIPT_URL.replace(/[^/?#]*([?#].*)?$/, 'cidaten-trechos.json') : '');
-  try { const r = url ? await fetch(url) : null; _ancCidaten = r && r.ok ? await r.json() : false; } catch (e) { _ancCidaten = false; }
+  // Tenta, em ordem: endereço configurado, pasta do próprio script e cópias publicadas (a página que usa o Motor pode carregá-lo de outro jeito).
+  const urls = [cfgA.trechosUrl, MF_SCRIPT_URL ? MF_SCRIPT_URL.replace(/[^/?#]*([?#].*)?$/, 'cidaten-trechos.json') : '',
+    `https://cdn.jsdelivr.net/gh/maurocmarques-creator/motor-frete@v${MF.versao}/dist/cidaten-trechos.json`,
+    'https://maurocmarques-creator.github.io/motor-frete/dist/cidaten-trechos.json'].filter(Boolean);
+  _ancCidaten = false;
+  for (const url of urls) {
+    try { const r = await fetch(url); if (r.ok) { const j = await r.json(); if (j && j.trechos) { _ancCidaten = j; break; } } } catch (e) { /* tenta a próxima */ }
+  }
   return _ancCidaten;
 }
 async function ancMontarZonas() {

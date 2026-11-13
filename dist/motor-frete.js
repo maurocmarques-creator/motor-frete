@@ -1,4 +1,4 @@
-/*! Motor de Frete v1.2.0 — PortoEx — gerado em 13/11/2026 08:07 por build.py (nao editar: mude src/ e rode o build) */
+/*! Motor de Frete v1.2.1 — PortoEx — gerado em 13/11/2026 08:09 por build.py (nao editar: mude src/ e rode o build) */
 (function () {
 'use strict';
 
@@ -6,7 +6,7 @@
 // nucleo.js — Motor de Frete: configuracao, banco (Supabase), permissao e utilidades.
 // Primeiro arquivo do pacote; os demais usam estas funcoes/variaveis globais.
 
-const MF = { cfg: {}, versao: '1.2.0', linhasCache: null };
+const MF = { cfg: {}, versao: '1.2.1', linhasCache: null };
 // Endereco deste script (dist/motor-frete.js): arquivos de apoio, como cidaten-trechos.json, ficam na mesma pasta.
 const MF_SCRIPT_URL = (document.currentScript && document.currentScript.src) || '';
 
@@ -2721,8 +2721,14 @@ let _ancCidaten = null;   // null = ainda não tentou; false = não carregou; ob
 async function ancCarregarCidaten() {
   if (_ancCidaten !== null) return _ancCidaten;
   const cfgA = (MF.cfg && MF.cfg.analiseCusto) || {};
-  const url = cfgA.trechosUrl || (MF_SCRIPT_URL ? MF_SCRIPT_URL.replace(/[^/?#]*([?#].*)?$/, 'cidaten-trechos.json') : '');
-  try { const r = url ? await fetch(url) : null; _ancCidaten = r && r.ok ? await r.json() : false; } catch (e) { _ancCidaten = false; }
+  // Tenta, em ordem: endereço configurado, pasta do próprio script e cópias publicadas (a página que usa o Motor pode carregá-lo de outro jeito).
+  const urls = [cfgA.trechosUrl, MF_SCRIPT_URL ? MF_SCRIPT_URL.replace(/[^/?#]*([?#].*)?$/, 'cidaten-trechos.json') : '',
+    `https://cdn.jsdelivr.net/gh/maurocmarques-creator/motor-frete@v${MF.versao}/dist/cidaten-trechos.json`,
+    'https://maurocmarques-creator.github.io/motor-frete/dist/cidaten-trechos.json'].filter(Boolean);
+  _ancCidaten = false;
+  for (const url of urls) {
+    try { const r = await fetch(url); if (r.ok) { const j = await r.json(); if (j && j.trechos) { _ancCidaten = j; break; } } } catch (e) { /* tenta a próxima */ }
+  }
   return _ancCidaten;
 }
 async function ancMontarZonas() {
